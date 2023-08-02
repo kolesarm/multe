@@ -1,36 +1,27 @@
 test_that("Test Fryer and Levitt", {
 
-    ## Table 3 Col 4
-    rr <- lm(std_iq_24~race+factor(age_24)+female+SES_quintile+
-                 factor(siblings)+family_structure+
-                 region + I(poly(mom_age, 5))+mom_age_NA+
-                 I(poly(parent_score, 5))+parent_score_NA+
-                 birthweight+ days_premature + multiple_birth +
-                 factor(interviewer_ID_24),
-             weight=W2C0, data=fl)
-    rd <- function(a, b) max(abs((a-b)/a))
-    testthat::expect_equal(nobs(rr), 8806L)
-    testthat::expect_lt(rd(rr$coefficients[c(2:9)],
-                           c(-0.213161196, -0.248588843, -0.294283692,
-                             -0.131691091, 0.164976004, 0.246441805,
-                             0.501252334, 0.247066373)), 1e-5)
+    ## Base controls only
+    r1 <- stats::lm(std_iq_24~race+factor(age_24)+female, weight=W2C0, data=fl)
+    m1 <- multe(r1, "race", cluster=NULL)
 
-    ## 2. Decomposition
-    ## m1 <- multe(rr, "race", cluster=NULL)
+    test_stata <- function(x, est, se, chi, cluster=FALSE) {
+        rd <- function(a, b) max(abs((a-b)/a))
+        estidx <- 0:((NROW(x$est_f)/3-1))*3+1
+        ## Convert to HC1 errors
+        if (cluster)
+            HC1 <- sqrt((x$n_f-1)/(x$n_f-x$k_f-1))
+        else
+            HC1 <- sqrt(x$n_f/(x$n_f-x$k_f-1))
+        testthat::expect_identical(unname(x$t_f[[2]]), chi[[2]])
+        c(rd(x$est_f[estidx, 1], est), rd(HC1*x$est_f[estidx+1, 1], se),
+          rd(x$t_f$W, chi[[1]]), abs(x$t_f[[3]]- chi[[3]]))
+    }
 
-    ## write_rd_table(a3, col=2, file="output/fryer_levitt", digits=3)
-
-    ## ## 3. Test we match stata
-    ## testthat::expect_lt(rd(a3$a1[c(1, 4, 7, 10), 1],
-    ##                        -c(0.213161708, 0.248588638, 0.294283378,
-    ## 0.131691169)),
-    ##                     11e-8)
-    ## ## Convert to HC1 errors
-    ## testthat::expect_lt(rd(sqrt(a3$n1/(a3$n1-a3$k1-1))*
-    ##                        a3$a1[c(2, 5, 8, 11), 1],b
-    ##                        c(0.032049388, 0.028500968,
-    ##                          0.035581831, 0.038432955)),
-    ##                     3e-4)
-
-
+    ## Test we match stata: 1 non-strata control, overlap
+    t1 <- test_stata(m1, -c(0.382148509, 0.431527804, 0.215241637, 0.236742438),
+                     c(0.027199988, 0.024173529, 0.035306552, 0.038614609),
+                     list(44.380661, 16L, 0.00017), cluster=TRUE)
+    testthat::expect_identical(t1 <= c(1e-8, 4e-4, 2e-4, 5e-5),
+                               rep(TRUE, 4))
+    ## TODO: Check ATE one at a time. Clustering, not weighted, no controls, no overlap
 })
