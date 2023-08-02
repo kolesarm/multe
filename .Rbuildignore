@@ -1,0 +1,7 @@
+^LICENSE\.md$
+^doc$
+^Meta$
+.lintr
+^README\.md$
+.gitignore
+^data-raw/*$

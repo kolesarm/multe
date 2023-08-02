@@ -1,0 +1,37 @@
+---
+output:
+  pdf_document:
+    citation_package: natbib
+    latex_engine: pdflatex
+    toc: false
+    keep_tex: true
+title: "Multiple Treatment Effects Regression"
+author: "Michal Kolesár"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+geometry: margin=1in
+fontfamily: mathpazo
+bibliography: library.bib
+fontsize: 11pt
+vignette: >
+  %\VignetteIndexEntry{multe}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include=FALSE, cache=FALSE}
+library("knitr")
+knitr::opts_knit$set(self.contained = FALSE)
+knitr::opts_chunk$set(tidy = TRUE, collapse=TRUE, comment = "#>",
+                      tidy.opts=list(blank=FALSE, width.cutoff=55))
+```
+
+The package `multe` implements contamination bias diagnostics for regressions
+with multiple treatments developed in @ghk23. This vignette illustrates the
+methods using data from @FrLe13.
+
+```{r setup}
+library("multe")
+2+2
+```
+
+# References

@@ -1,0 +1,41 @@
+Package: multe
+Title: Multiple Treatment Effects Regression
+Version: 0.0.0.9000
+Authors@R:
+    c(person(given = "Michal",
+            family = "Kolesár",
+            role = c("aut", "cre"),
+            email = "kolesarmi@googlemail.com",
+            comment = c(ORCID = "0000-0002-2482-7796")),
+      person(given= "Paul",
+             family = "Goldsmith-Pinkham",
+             role = "ctb",
+             email = "paulgp@gmail.com"),
+      person(given = "Peter",
+             family = "Hull",
+             role = "ctb",
+             email = "peter_hull@brown.edu"))
+Description: This R package implements contamination bias diagnostics for
+    regressions with multiple treatments. The implementation is based on
+    Goldsmith-Pinkham, Hull, and Kolesár (2022) <arXiv:2106.05024>.
+Depends: R (>= 4.3.0)
+Language: en-US
+URL: https://github.com/kolesarm/multe
+BugReports: https://github.com/kolesarm/multe/issues
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports:
+    stats,
+    nnet,
+    tidyr
+Suggests: 
+    spelling,
+    knitr,
+    formatR,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+LazyData: true
+VignetteBuilder: knitr
