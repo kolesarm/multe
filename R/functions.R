@@ -196,8 +196,6 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
     rownames(seP) <- rownames(seB) <- rep("pop_se", nrow(estB))
     rownames(seO) <- rep("oracle_se", nrow(estB))
 
-
-
     f2 <- function(k) {
         rbind(estA[k, , drop=FALSE], seP[k, , drop=FALSE],
               seO[k, , drop=FALSE])
@@ -205,81 +203,6 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
     T1 <- do.call(rbind, lapply(1:K, f2))
     T2 <- rbind(estB, seB)[rep(seq_len(K), each=2) + c(0, K), ]
     list(A=T1, B=T2, tests=tests)
-}
-
-
-## @param S factor of strata IDs, NULL if none present
-## @param Cm matrix of controls, excluding intercept. NULL if none present.
-## @param cluster which variable to cluster on, NULL for robust standard errors
-analyze <- function(Y, X, Cm=NULL, S=NULL, wgt=NULL, cluster=NULL) {
-    if (is.null(S)) {
-        S <- factor(rep(1, length(X)))
-    }
-    if (!is.null(wgt) && any(wgt == 0)) {
-        ok <- wgt != 0
-        Y <- Y[ok]
-        X <- X[ok]
-        Cm <- Cm[ok, , drop=FALSE]
-        S <- droplevels(S[ok])
-        wgt <- wgt[ok]
-        cluster <- cluster[ok]
-    }
-
-    build_matrix <- function(Cm, S)  {
-        if (is.null(Cm))
-            Cm <- matrix(nrow=length(S), ncol=0)
-        if (nlevels(S) > 1) {
-            cbind(stats::model.matrix(~ S), Cm)
-        } else {
-            cbind(rep(1, NROW(Cm)), Cm)
-        }
-    }
-    r1 <- decomposition(Y, X, build_matrix(Cm, S), wgt, cluster)
-    n1 <- length(Y)
-    k1 <- NCOL(build_matrix(Cm, S))-1L
-
-    ## 1. Drop strata with no overlap
-    idx <- vector(length=0)
-    if (nlevels(S) > 1) {
-        dropstrata <- levels(S)[colSums(table(X, S)==0)>0]
-        idx <- S %in% dropstrata
-        if (sum(idx)> 0) {
-            cat("These strata fail overlap:", dropstrata, "\n")
-        }
-        Y <- Y[!idx]
-        X <- X[!idx]
-        Cm <- Cm[!idx, , drop=FALSE]
-        S <- droplevels(S[!idx])
-        wgt <- wgt[!idx]
-        cluster <- cluster[!idx]
-    }
-    ## 2. Drop controls that don't have within-treatment variation
-    Zm <- build_matrix(Cm, S)
-    rs <- function(x) {
-        qrz <- qr(Zm[X==x, ])
-        qrz$pivot[-seq.int(qrz$rank)]
-    }
-    dropctrl <- unique(unlist(lapply(levels(X), rs)))
-
-    if (sum(dropctrl)> 0) {
-        cat("These variables have no within-treatment variation:",
-            colnames(Zm)[sort(dropctrl)], "\n")
-        Zm <- Zm[, -dropctrl]
-    }
-
-    r2 <- list()
-    n2 <- k2 <- NA
-
-    if (length(Y)==0) {
-        message("Overlap sample is empty")
-    } else if (sum(dropctrl) > 0 || sum(idx) > 0) {
-        r2 <- decomposition(Y, X, Zm, wgt, cluster)
-        n2 <- length(Y)
-        k2 <- NCOL(Zm)-1L
-    }
-
-    list(a1=r1$A, a2=r2$A, b1=r1$B, b2=r2$B, n1=n1, n2=n2, k1=k1, k2=k2,
-         t1=r1$tests, t2=r2$tests)
 }
 
 

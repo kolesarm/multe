@@ -28,7 +28,7 @@ multe <- function(r, treatment_name, cluster=NULL) {
         coefnames %in% paste0(stratum_name,
                               levels(r$model[[stratum_name]])) |
         unname(is.na(r$coefficients))
-    if (sum(unname(is.na(r$coefficients)))>0) {
+    if (sum(is.na(r$coefficients)) > 0) {
         message("These columns are dropped due to collinearity: ",
                 names(r$coefficients)[is.na(r$coefficients)])
     }
@@ -45,8 +45,6 @@ multe <- function(r, treatment_name, cluster=NULL) {
     }
 
     build_matrix <- function(Cm, S)  {
-        if (is.null(Cm))
-            Cm <- matrix(nrow=length(S), ncol=0)
         if (nlevels(S) > 1) {
             cbind(stats::model.matrix(~ S), Cm)
         } else {

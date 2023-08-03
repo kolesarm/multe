@@ -6,3 +6,4 @@
 .gitignore
 ^data-raw/*$
 ^\.github$
+^codecov\.yml$

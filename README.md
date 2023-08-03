@@ -1,9 +1,6 @@
-[![R-CMD-check](https://github.com/kolesarm/multe/workflows/R-CMD-check/badge.svg)](https://github.com/kolesarm/multe/actions) [![Coverage status](https://codecov.io/gh/kolesarm/multe/branch/master/graph/badge.svg)](https://codecov.io/github/kolesarm/multe?branch=master)
-
 # multe
 
-<!-- badges: start -->
-<!-- badges: end -->
+[![R-CMD-check](https://github.com/kolesarm/multe/workflows/R-CMD-check/badge.svg)](https://github.com/kolesarm/multe/actions) [![Coverage status](https://codecov.io/gh/kolesarm/multe/branch/master/graph/badge.svg)](https://codecov.io/github/kolesarm/multe?branch=master)
 
 This R package implements contamination bias diagnostics, using procedures from [Goldsmith-Pinkham, Hull, and Kolesár (2023)](https://arxiv.org/abs/2106.05024). See the package
 [manual](doc/manual.pdf) for documentation of the package functions. See
