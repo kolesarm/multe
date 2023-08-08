@@ -85,5 +85,11 @@ test_that("Test Fryer and Levitt", {
     testthat::expect_identical(t3[1:4] <= c(1e-9, 1e-9, 1e-5, 1e-10),
                                rep(TRUE, 4))
 
+    ## Single continuous control
+    r4 <- stats::lm(std_iq_24~race+parent_score, data=fl)
+    testthat::expect_silent(m4 <- multe(r4, "race"))
+    expect_identical(m4$est_0, NULL)
+
+
     ## TODO: printCoefmat
 })

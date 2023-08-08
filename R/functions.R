@@ -36,7 +36,7 @@ ginv <- function(A, tol = (.Machine$double.eps)^(3/5)) {
 ## signifying cluster membership
 decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
     ## Drop columns with no variation
-    vars <- apply(Zm[, -1], 2L, stats::var)
+    vars <- apply(Zm[, -1, drop=FALSE], 2L, stats::var)
     if (sum(vars==0)>0) {
         message("Dropping these controls, since they have no variation:",
                 colnames(Zm[, -1])[sum(vars==0)])
