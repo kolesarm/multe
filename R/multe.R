@@ -85,7 +85,7 @@ multe <- function(r, treatment_name, cluster=NULL) {
     dropctrl <- unique(unlist(lapply(levels(X), rs)))
 
     if (sum(dropctrl)> 0) {
-        message("\nThe following variables have no within-treamtent variation",
+        message("\nThe following variables have no within-treatment variation",
                 " and are dropped:\n",
                 paste(colnames(Zm)[sort(dropctrl)], collapse=", "))
         Zm <- Zm[, -dropctrl]
