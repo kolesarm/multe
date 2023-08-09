@@ -30,7 +30,8 @@ multe <- function(r, treatment_name, cluster=NULL) {
         unname(is.na(r$coefficients))
     if (sum(is.na(r$coefficients)) > 0) {
         message("These columns are dropped due to collinearity: ",
-                names(r$coefficients)[is.na(r$coefficients)])
+                paste(names(r$coefficients)[is.na(r$coefficients)],
+                      collapse=", "))
     }
     Cm <- stats::model.matrix(r)[, !filter, drop=FALSE]
 
@@ -85,7 +86,7 @@ multe <- function(r, treatment_name, cluster=NULL) {
 
     if (sum(dropctrl)> 0) {
         message("\nThe following variables have no within-treamtent variation",
-                "and are dropped:\n",
+                " and are dropped:\n",
                 paste(colnames(Zm)[sort(dropctrl)], collapse=", "))
         Zm <- Zm[, -dropctrl]
     }
