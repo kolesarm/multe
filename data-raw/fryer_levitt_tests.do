@@ -52,8 +52,39 @@ disp e(chi2)
 disp e(df_m)
 disp e(p)
 esttab r5, b(%13.11f) se(%13.11f) wide keep(*.race)
-* TODO: ATE OAT
+
+qui: eststo a1: reg std_iq_24 i.race i.days_premature if (days_premature~=56 & (1.race | 0.race)), cluster(interviewer_ID_24)
+qui: eststo a2: reg std_iq_24 i.race i.days_premature if (days_premature~=56 & (2.race | 0.race)), cluster(interviewer_ID_24)
+qui: eststo a3: reg std_iq_24 i.race i.days_premature if (days_premature~=56 & (3.race | 0.race)), cluster(interviewer_ID_24)
+qui: eststo a4: reg std_iq_24 i.race i.days_premature if (days_premature~=56 & (4.race | 0.race)), cluster(interviewer_ID_24)
+esttab a1 a2 a3 a4, b(%13.11f) se(%13.11f) wide keep(*.race)
+
+* TODO: ATE
+preserve
+keep if days_premature~=56
+tabulate days_premature, generate(days_a)
+
+* drop days_prematurea
+foreach v of varlist days_a*  {
+    qui: summarize `v'
+    generate `v'd = `v' - r(mean)
+}
+qui: eststo ra1: reg std_iq_24 i.race##c.days_a*d, cluster(interviewer_ID_24)
+esttab ra1, b(%13.11f) se(%13.11f) wide keep(*.race)
+restore
 
 * qui: eststo r4: areg std_iq_24 i.race $base_2years i.SES_quintile $home $prenatal [pw=W2C0] , absorb(interviewer_ID_24)
+
+* binomial
+generate white = (race==0)
+qui: eststo r6: reg std_iq_24 i.white i.age_24 female [pw=W2C0], robust
+qui: eststo r7: reg std_iq_24 i.white##c.femalew i.white##c.age_24a*w [pw=W2C0], robust
+
+esttab r6 r7, b(%13.11f) se(%13.11f) wide keep(1.white)
+
+logit white i.age_24 female [pw=W2C0], robust
+disp e(chi2)
+disp e(df_m)
+disp e(p)
 
 log close

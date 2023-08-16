@@ -30,6 +30,26 @@ ginv <- function(A, tol = (.Machine$double.eps)^(3/5)) {
          rank=sum(pos))
 }
 
+## Hessian for multinomial likelihood
+multHessian <- function(ml, Z=stats::model.matrix(ml)) {
+    pis <- ml$fitted.values
+    if (NCOL(pis)==1) {
+        pis <- cbind(1 - pis, pis)
+    }
+    wgt <- drop(ml$weights)
+    L <- NCOL(Z)
+    K <- NCOL(pis)-1
+
+    He <- matrix(nrow=K*L, ncol=K*L)
+    for (k in seq_len(K)) {
+        for (j in seq_len(K)) {
+            He[(L * (k-1) + 1):(L*k), (L * (j-1) + 1):(L*j)] <-
+                crossprod(wgt*Z, pis[, k+1] * ((k==j)-pis[, j+1])*Z)
+        }
+    }
+    He
+}
+
 
 ## matrix of controls Zm, first column is the intercept; X must be a factor,
 ## first level to be dropped. wgt are weights, and cluster is a factor variable
@@ -45,7 +65,7 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
 
     K <- nlevels(X)-1
     L <- ncol(Zm)
-    estA <- seO <- seP <- seB <- matrix(ncol=5, nrow=K)
+    estB <- estA <- seO <- seP <- seB <- matrix(ncol=5, nrow=K)
     ws <- if (is.null(wgt)) rep(1L, length(Y)) else sqrt(wgt)
 
     Xf <- outer(X, levels(X), `==`) + 0    # full X matrix
@@ -77,13 +97,16 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
         deltak <- rk$coefficients[k, ]
         estA[k, 2] <- sum(gam[deltak!=0, k]*deltak[deltak!=0])
         ## doubletilde(X)
-        dtX <- stats::lm(tX[, k]~0+tX[, -k], weights=wgt)$residuals
+        if (K==1) {
+            dtX <- tX
+        } else {
+            dtX <- stats::lm(tX[, k]~0+tX[, -k], weights=wgt)$residuals
+        }
         pp <- psi_al[, (k*L+1):((k+1)*L)]- psi_al[, 1:L]
         psi_ownk <- drop(pp[, deltak!=0, drop=FALSE] %*% deltak[deltak!=0]+
                              (ws^2*dtX*rk$residuals/
                                   sum(ws^2*dtX^2))[, deltak!=0, drop=FALSE] %*%
                                  gam[deltak!=0, k])
-
 
         seP[k, 2] <- sehat(psi_ownk, cluster)
         seB[k, 2] <- sehat(psi_beta[, k]-psi_ownk, cluster)
@@ -106,60 +129,56 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
 
     ## Generalized overlap weights
     Zm <- scale(Zm, center=FALSE) # otherwise numerical issues
+    ## nnet by Brian Ripley
     ml <- nnet::multinom(X~0+Zm, abstol=1e-12, reltol=1e-12, trace=FALSE,
                          maxit=1e3, weights=wgt, , MaxNWts=10000)
+    ml$fitted.values[ml$fitted.values < max(ml$fitted.values)*1e-6] <- 0
+    if (NCOL(ml$fitted.values)==1) {
+        ml$fitted.values <- cbind(1 - ml$fitted.values, ml$fitted.values)
+    }
     pis <- ml$fitted.values
-    pis[pis<max(pis)*10e-6] <- 0
+    score <- function(pis) {
+        ws^2*matrix(apply((Xf-pis)[, -1, drop=FALSE], 2,
+                          function(x) x*Zm), nrow=NROW(Zm))
+    }
+    Sc <- score(pis)
+    He <- multHessian(ml)
+
+    ## Wald and LM tests. Assume first element of Z is intercept
+    idx1 <- (0:(K-1))*L+1
+    He1112 <- solve(He[idx1, idx1, drop=FALSE],
+                    He[idx1, -idx1, drop=FALSE]) ## H11^{-1}H12
+    Vu <- Vhat(Sc[, -idx1, drop=FALSE] -
+                   Sc[, idx1, drop=FALSE] %*% He1112, cluster)
+    invVu <- ginv(Vu)
+    th1 <- stats::coef(ml)
+    if (is.vector(th1)) th1 <- matrix(th1, nrow=1)
+    th <- drop((He[-idx1, -idx1, drop=FALSE]-
+                    He[-idx1, idx1, drop=FALSE] %*% He1112) %*%
+                   as.vector(t(th1[, -1, drop=FALSE])))
+    Wa <- drop(crossprod(th, invVu$inverse %*% th))
+    ## LM
+    pis0 <- outer(rep(1, NROW(Xf)), colMeans(Xf))
+    Scr <- score(pis0)
+    Scr1 <- Scr[, idx1, drop=FALSE]
+    Scr2 <- Scr[, -idx1, drop=FALSE]
+
+    ml$fitted.values <- pis0
+    Her <- multHessian(ml)
+    Her1112 <- solve(Her[idx1, idx1, drop=FALSE], Her[idx1, -idx1, drop=FALSE])
+    Vr <- Vhat(Scr2 - Scr1 %*% Her1112, cluster)
+    invVr <- ginv(Vr)
+    LM <- drop(crossprod(colSums(Scr2), invVr$inverse %*% colSums(Scr2)))
+
+    tests <- list(W=Wa, df=invVu$rank, p_W=1-stats::pchisq(Wa, df=invVu$rank),
+                  LM=LM, df=invVr$rank, p_LM=1-stats::pchisq(LM, df=invVr$rank))
+
+    ## Generalized overlap weights: standard errors
     lam <- 1/rowSums(1/pis)
     ipi <- 1/pmax(pis, 1e-10)    # don't divide by zero
     lam[lam<max(lam)*10e-6] <- 0 # round to exact zero
     cw <- lam/rowSums(Xf*pis)
 
-    tests <- list(W=NA, df=NA, p_W=NA, LM=NA, df=NA, p_LM=NA)
-
-    Sc <- ws^2*matrix(apply((Xf-pis)[, -1], 2,
-                            function(x) x*Zm), nrow=NROW(Zm))
-    Hessian <- function(pis) {
-        He <- matrix(nrow=K*L, ncol=K*L)
-        for (k in seq_len(K)) {
-            for (j in seq_len(K)) {
-                He[(L * (k-1) + 1):(L*k), (L * (j-1) + 1):(L*j)] <-
-                    crossprod(ws*Zm, pis[, k+1] * ((k==j)-pis[, j+1])*ws*Zm)
-            }
-        }
-        He
-    }
-    He <- Hessian(pis)
-
-    ## Wald and LM tests. First restricted score and Hessian, assume first
-    ## element of Z is intercept
-    Scr <- ws^2*matrix(apply(scale(Xf[, -1], center=TRUE, scale=FALSE), 2,
-                             function(x) x*Zm), nrow=NROW(Zm))
-    idx1 <- (0:(K-1))*L+1
-    Scr2 <- Scr[, -idx1]
-    Scr1 <- Scr[, idx1]
-    Her <- Hessian(outer(rep(1, NROW(Xf)), colMeans(Xf)))
-    Her11 <- Her[idx1, idx1]
-    Her12 <- Her[idx1, -idx1]
-    Vr <- Vhat(Scr2 - Scr1 %*% solve(Her11, Her12), cluster)
-    invVr <- ginv(Vr)
-    LM <- drop(crossprod(colSums(Scr2), invVr$inverse %*% colSums(Scr2)))
-
-    theta2 <- as.vector(t(stats::coef(ml)[, -1]))
-    Sc2 <- Sc[, -idx1]
-    Sc1 <- Sc[, idx1]
-    He11 <- He[idx1, idx1]
-    He12 <- He[idx1, -idx1]
-    He21 <- He[-idx1, idx1]
-    He22 <- He[-idx1, -idx1]
-    Vu <- Vhat(Sc2 - Sc1 %*% solve(He11, He12), cluster)
-    invVu <- ginv(Vu)
-    th <- drop((He22-He21 %*% solve(He11, He12)) %*% theta2)
-    Wa <- drop(crossprod(th, invVu$inverse %*% th))
-    tests <- list(W=Wa, df=invVu$rank, p_W=1-stats::pchisq(Wa, df=invVu$rank),
-                  LM=LM, df=invVr$rank, p_LM=1-stats::pchisq(LM, df=invVr$rank))
-
-    ## Generalized overlap weights: standard errors
     if (sum(lam)>0) {
         ro <- stats::lm(Y~X, weights=cw*ws^2)
         estA[, 5] <- ro$coefficients[-1]
@@ -170,7 +189,7 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
         ## Hessian. model.matrix rather than ml$residuals to account for
         ## rounding
         f1 <- function(x) colSums(x*ws^2*cw*ro$residuals*Zm)
-        M0 <- as.vector(apply(lam*ipi[, -1]*Xf[, 1], 2, f1))
+        M0 <- as.vector(apply(lam*ipi[, -1, drop=FALSE]*Xf[, 1], 2, f1))
         M <- matrix(nrow=K*L, ncol=K) # M_k(theta)
         for (k in seq_len(K)) {
             M[, k] <- as.vector(apply((lam*ipi[, -1]-rep(1, nrow(Zm)) %o%
@@ -189,7 +208,7 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
         message("Sample for efficient common weights is empty.")
     }
 
-    estB <- cbind(estA[, 1]*NA, estA[, 1]-estA[, -1])
+    estB[, -1] <- estA[, 1]-estA[, -1]
 
     rownames(estA) <- rownames(estB) <- levels(X)[-1]
     colnames(estA) <- colnames(estB) <- c("PL", "OWN", "ATE", "EW", "CW")

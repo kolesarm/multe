@@ -1,3 +1,11 @@
+build_matrix <- function(Cm, S)  {
+    if (nlevels(S) > 1) {
+        cbind(stats::model.matrix(~ S), Cm)
+    } else {
+        cbind(rep(1, NROW(Cm)), Cm)
+    }
+}
+
 #' Contamination Bias Diagnostics for Multiple Treatments
 #'
 #' @param r Fitted model, output of the \code{lm} function.
@@ -34,6 +42,9 @@ multe <- function(r, treatment_name, cluster=NULL) {
                       collapse=", "))
     }
     Cm <- stats::model.matrix(r)[, !filter, drop=FALSE]
+    if (NCOL(build_matrix(Cm, S))==1) {
+        stop("There are no controls beyond the intercept")
+    }
 
     if (!is.null(wgt) && any(wgt == 0)) {
         ok <- wgt != 0
@@ -43,14 +54,6 @@ multe <- function(r, treatment_name, cluster=NULL) {
         S <- droplevels(S[ok])
         wgt <- wgt[ok]
         cluster <- cluster[ok]
-    }
-
-    build_matrix <- function(Cm, S)  {
-        if (nlevels(S) > 1) {
-            cbind(stats::model.matrix(~ S), Cm)
-        } else {
-            cbind(rep(1, NROW(Cm)), Cm)
-        }
     }
 
     r1 <- decomposition(Y, X, build_matrix(Cm, S), wgt, cluster)
