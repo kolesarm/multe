@@ -1,8 +1,19 @@
-## Compute quadratic form b'A^{-}b
-qf <- function(A, b, tol) {
-    r <- stats::lm.fit(A, b, tol=tol)$coefficients
-    list(qf=sum((b*r)[!is.na(r)]), rank=sum(!is.na(r)))
+## Generalized inverse of a symmetric matrix
+ginv <- function(A, tol = (.Machine$double.eps)^(3/5)) {
+    e <- eigen(A)
+    pos <- e$values >= max(tol * e$values[1L], 0)
+    list(inverse=e$vectors[, pos] %*% (1/e$values[pos] * t(e$vectors[, pos])),
+         rank=sum(pos))
 }
+## Compute quadratic form b'A^{+}b
+qfp <- function(A, b, tol) {
+    Ap <- ginv(A, tol)
+    list(qf=sum(b* (Ap$inverse %*% b)), rank=Ap$rank)
+}
+## Appears to create fewer problems than b'A^{-}b:
+## r <- stats::lm.fit(A, b, tol=tol)$coefficients
+## list(qf=sum((b*r)[!is.na(r)]), rank=sum(!is.na(r)))
+
 
 ## scale range of vector to [0,1]
 scaleRange <- function(x) {
@@ -164,7 +175,6 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     th <- drop((He[-idx1, -idx1, drop=FALSE]-
                     He[-idx1, idx1, drop=FALSE] %*% He1112) %*%
                    as.vector(t(th1[, -1, drop=FALSE])))
-    Wa <- qf(Vu, th, tol=tol)
     ## LM
     pis0 <- outer(rep(1, NROW(Xf)), colMeans(Xf))
     Scr <- score(pis0)
@@ -175,10 +185,28 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     Her <- multHessian(ml)
     Her1112 <- solve(Her[idx1, idx1, drop=FALSE], Her[idx1, -idx1, drop=FALSE])
     Vr <- Vhat(Scr2 - Scr1 %*% Her1112, cluster)
-    LM <- qf(Vr, colSums(Scr2), tol=tol)
 
-    tests <- list(W=Wa$qf, df=Wa[[2]], p_W=1-stats::pchisq(Wa$qf, df=Wa[[2]]),
-                  LM=LM$qf, df=LM[[2]], p_LM=1-stats::pchisq(LM$qf, df=LM[[2]]))
+    testcov <- function(tol) {
+        LM <- qfp(Vr, colSums(Scr2), tol=tol)
+        Wa <- qfp(Vu, th, tol=tol)
+        list(W=Wa$qf, W_df=Wa[[2]], p_W=1-stats::pchisq(Wa$qf, df=Wa[[2]]),
+             LM=LM$qf, LM_df=LM[[2]], p_LM=1-stats::pchisq(LM$qf, df=LM[[2]]),
+             tol=tol)
+    }
+    tests <- testcov(tol)
+    tests2 <- testcov(tol*1e-3)
+    if (max(abs(unlist(tests)-unlist(tests2))[1:3])) {
+        warning("Wald statistic depends on numerical tolerance.\nAt tol=", tol,
+                ", the statistic is: ", tests$W, ", with df: ", tests$W_df,
+                "At tol=", tol*1e-3, ", the statistic is: ", tests2$W,
+                ", with df: ", tests2$W_df)
+    }
+    if (max(abs(unlist(tests)-unlist(tests2))[4:6])) {
+        warning("LM statistic depends on numerical tolerance.\nAt tol=", tol,
+                ", the statistic is: ", tests$LM, ", with df: ", tests$LM_df,
+                "\nAt tol=", tol*1e-3, ", the statistic is: ", tests2$LM,
+                ", with df: ", tests2$LM_df)
+    }
 
     ## Generalized overlap weights: standard errors
     lam <- 1/rowSums(1/pis)

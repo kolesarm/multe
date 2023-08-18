@@ -4,7 +4,7 @@
 \alias{multe}
 \title{Contamination Bias Diagnostics for Multiple Treatments}
 \usage{
-multe(r, treatment_name, cluster = NULL)
+multe(r, treatment_name, cluster = NULL, tol = 1e-07)
 }
 \arguments{
 \item{r}{Fitted model, output of the \code{lm} function.}
@@ -14,6 +14,8 @@ multe(r, treatment_name, cluster = NULL)
 \item{cluster}{Factor variable that defines clusters. If \code{NULL} (or not
 supplied), the command computes heteroscedasticity-robust standard
 errors, rather than cluster-robust standard errors.}
+
+\item{tol}{Numerical tolerance for computing LM test statistic}
 }
 \value{
 Returns a list with the following components: TODO

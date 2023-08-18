@@ -13,9 +13,10 @@ build_matrix <- function(Cm, S)  {
 #' @param cluster Factor variable that defines clusters. If \code{NULL} (or not
 #'     supplied), the command computes heteroscedasticity-robust standard
 #'     errors, rather than cluster-robust standard errors.
+#' @param tol Numerical tolerance for computing LM test statistic
 #' @return Returns a list with the following components: TODO
 #' @export
-multe <- function(r, treatment_name, cluster=NULL) {
+multe <- function(r, treatment_name, cluster=NULL, tol=1e-7) {
     Y <- stats::model.response(r$model)
     wgt <- stats::model.weights(r$model)
     X <- r$model[, treatment_name]
@@ -56,7 +57,7 @@ multe <- function(r, treatment_name, cluster=NULL) {
         cluster <- cluster[ok]
     }
 
-    r1 <- decomposition(Y, X, build_matrix(Cm, S), wgt, cluster)
+    r1 <- decomposition(Y, X, build_matrix(Cm, S), wgt, cluster, tol)
     n1 <- length(Y)
     k1 <- NCOL(build_matrix(Cm, S))-1L
 
@@ -100,7 +101,7 @@ multe <- function(r, treatment_name, cluster=NULL) {
     if (length(Y)==0) {
         message("Overlap sample is empty")
     } else if (sum(dropctrl) > 0 || sum(idx) > 0) {
-        r2 <- decomposition(Y, X, Zm, wgt, cluster)
+        r2 <- decomposition(Y, X, Zm, wgt, cluster, tol)
         n2 <- length(Y)
         k2 <- NCOL(Zm)-1L
     }
