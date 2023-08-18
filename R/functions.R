@@ -184,7 +184,7 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     Her <- multHessian(ml)
     Her1112 <- solve(Her[idx1, idx1, drop=FALSE], Her[idx1, -idx1, drop=FALSE])
     Vr <- Vhat(Scr2 - Scr1 %*% Her1112, cluster)
-
+    ## TODO: Drop Wald
     testcov <- function(tol) {
         LM <- qfp(Vr, colSums(Scr2), tol=tol)
         Wa <- qfp(Vu, th, tol=tol)
@@ -196,9 +196,9 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     tests2 <- testcov(tol*1e-3)
     if (max(abs(unlist(tests)-unlist(tests2))[4:6])) {
         warning("LM statistic depends on numerical tolerance.\nAt tol=", tol,
-                ", the statistic is: ", tests$LM, ", with df: ", tests$LM_df,
-                "\nAt tol=", tol*1e-3, ", the statistic is: ", tests2$LM,
-                ", with df: ", tests2$LM_df)
+                ", the statistic is: ", round(tests$LM, 2), ", with df: ",
+                round(tests$LM_df, 2), "\nAt tol=", tol*1e-3,
+                ", the statistic is: ", tests2$LM, ", with df: ", tests2$LM_df)
     }
 
     ## Generalized overlap weights: standard errors

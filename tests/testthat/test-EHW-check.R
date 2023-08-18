@@ -170,7 +170,7 @@ test_that("Simple examples", {
                                        r4$model[, "race"],
                                        stats::model.matrix(r4)[, -c(2:5)],
                                        stats::model.weights(r4$model)),
-                   "statistic is: 979.459704611599, with df: 35")
+                   "statistic is: 979.46, with df: 35")
 })
 
 ## TODO: Test LM, own, and CW.
