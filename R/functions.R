@@ -97,8 +97,7 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     ## ATE
     ri <- stats::lm(Y~0+Zm:Xf, weights=wgt)             # interactions model
     gam <- matrix(ri$coefficients[-(1:L)], nrow=L)-ri$coefficients[1:L]
-    Zb <- if (is.null(wgt)) colMeans(Zm) else apply(Zm, 2, stats::weighted.mean,
-                                                    wgt)
+    Zb <- apply(Zm, 2, stats::weighted.mean, ws^2) # weighted colMeans(Zb)
     estA[, 3] <- Zb %*% gam
     psi_al <- reg_if(ws*ri$residuals, ri$qr)
 
@@ -175,8 +174,8 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     th <- drop((He[-idx1, -idx1, drop=FALSE]-
                     He[-idx1, idx1, drop=FALSE] %*% He1112) %*%
                    as.vector(t(th1[, -1, drop=FALSE])))
-    ## LM
-    pis0 <- outer(rep(1, NROW(Xf)), colMeans(Xf))
+    ## LM, calculate weighted colMeans(Xf)
+    pis0 <- outer(rep(1, NROW(Xf)), apply(Xf, 2, stats::weighted.mean, ws^2))
     Scr <- score(pis0)
     Scr1 <- Scr[, idx1, drop=FALSE]
     Scr2 <- Scr[, -idx1, drop=FALSE]
@@ -195,12 +194,6 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     }
     tests <- testcov(tol)
     tests2 <- testcov(tol*1e-3)
-    if (max(abs(unlist(tests)-unlist(tests2))[1:3])) {
-        warning("Wald statistic depends on numerical tolerance.\nAt tol=", tol,
-                ", the statistic is: ", tests$W, ", with df: ", tests$W_df,
-                "At tol=", tol*1e-3, ", the statistic is: ", tests2$W,
-                ", with df: ", tests2$W_df)
-    }
     if (max(abs(unlist(tests)-unlist(tests2))[4:6])) {
         warning("LM statistic depends on numerical tolerance.\nAt tol=", tol,
                 ", the statistic is: ", tests$LM, ", with df: ", tests$LM_df,

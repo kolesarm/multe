@@ -156,6 +156,21 @@ test_that("Simple examples", {
                      c(gr$p[j]-1, 2*gr$p[j]*gr$S[j]/3, 2*gr$p[j]-1,
                        1-pchisq(2*gr$p[j]*gr$S[j]/3, df=2*gr$p[j]-1)))
     }
+
+    ## Simplest drop
+    r3 <- lm(std_iq_24~race+ I(poly(mom_age, 5))+mom_age_NA, data=fl)
+    expect_message(m3 <- multe(r3, "race"),
+                   "variation and are dropped:\nmom_age_NATRUE")
+    expect_equal(m3$t_f$LM, 807.346338688)
+
+    ## Simplest LM/Wald instability, not weighting solves it
+    r4 <- lm(std_iq_24~race+ region + I(poly(mom_age, 5))+mom_age_NA,
+             weight=W2C0, data=fl)
+    expect_warning(m4 <- decomposition(stats::model.response(r4$model),
+                                       r4$model[, "race"],
+                                       stats::model.matrix(r4)[, -c(2:5)],
+                                       stats::model.weights(r4$model)),
+                   "statistic is: 979.459704611599, with df: 35")
 })
 
 ## TODO: Test LM, own, and CW.
