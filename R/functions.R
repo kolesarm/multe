@@ -1,3 +1,16 @@
+## Compute quadratic form b'A^{-}b
+qf <- function(A, b, tol) {
+    r <- stats::lm.fit(A, b, tol=tol)$coefficients
+    list(qf=sum((b*r)[!is.na(r)]), rank=sum(!is.na(r)))
+}
+
+## scale range of vector to [0,1]
+scaleRange <- function(x) {
+    d <- diff(range(x))
+    if (d>0) x <-(x-min(x))/d
+    x
+}
+
 ## Influence function computation, diag(res)*x*(x'x)^{-1}, with qrx=qr(x)
 reg_if <- function(res, qrx) {
     ret <- array(dim=dim(qrx$qr))
@@ -22,14 +35,6 @@ sehat <- function(psi, cluster=NULL) {
 }
 
 
-## Generalized inverse of a symmetric matrix
-ginv <- function(A, tol = (.Machine$double.eps)^(3/5)) {
-    e <- eigen(A)
-    pos <- e$values >= max(tol * e$values[1L], 0)
-    list(inverse=e$vectors[, pos] %*% (1/e$values[pos] * t(e$vectors[, pos])),
-         rank=sum(pos))
-}
-
 ## Hessian for multinomial likelihood
 multHessian <- function(ml, Z=stats::model.matrix(ml)) {
     pis <- ml$fitted.values
@@ -50,11 +55,14 @@ multHessian <- function(ml, Z=stats::model.matrix(ml)) {
     He
 }
 
-
 ## matrix of controls Zm, first column is the intercept; X must be a factor,
 ## first level to be dropped. wgt are weights, and cluster is a factor variable
 ## signifying cluster membership
-decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
+decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
+    ## For nnet::multinom, the rhs variables be roughly scaled to [0,1]
+    ## or the fit will be slow or may not converge at all.
+    Zm <- apply(Zm, 2, scaleRange)
+
     ## Drop columns with no variation
     vars <- apply(Zm[, -1, drop=FALSE], 2L, stats::var)
     if (sum(vars==0)>0) {
@@ -128,10 +136,11 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
     }
 
     ## Generalized overlap weights
-    Zm <- scale(Zm, center=FALSE) # otherwise numerical issues
-    ## nnet by Brian Ripley
+
+    ## nnet by Brian Ripley. Convergence: ml$convergence==0, ml$value
     ml <- nnet::multinom(X~0+Zm, abstol=1e-12, reltol=1e-12, trace=FALSE,
-                         maxit=1e3, weights=wgt, , MaxNWts=10000)
+                         maxit=1e4, weights=wgt, MaxNWts=1e4)
+
     ml$fitted.values[ml$fitted.values < max(ml$fitted.values)*1e-6] <- 0
     if (NCOL(ml$fitted.values)==1) {
         ml$fitted.values <- cbind(1 - ml$fitted.values, ml$fitted.values)
@@ -150,13 +159,12 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
                     He[idx1, -idx1, drop=FALSE]) ## H11^{-1}H12
     Vu <- Vhat(Sc[, -idx1, drop=FALSE] -
                    Sc[, idx1, drop=FALSE] %*% He1112, cluster)
-    invVu <- ginv(Vu)
     th1 <- stats::coef(ml)
     if (is.vector(th1)) th1 <- matrix(th1, nrow=1)
     th <- drop((He[-idx1, -idx1, drop=FALSE]-
                     He[-idx1, idx1, drop=FALSE] %*% He1112) %*%
                    as.vector(t(th1[, -1, drop=FALSE])))
-    Wa <- drop(crossprod(th, invVu$inverse %*% th))
+    Wa <- qf(Vu, th, tol=tol)
     ## LM
     pis0 <- outer(rep(1, NROW(Xf)), colMeans(Xf))
     Scr <- score(pis0)
@@ -167,11 +175,10 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
     Her <- multHessian(ml)
     Her1112 <- solve(Her[idx1, idx1, drop=FALSE], Her[idx1, -idx1, drop=FALSE])
     Vr <- Vhat(Scr2 - Scr1 %*% Her1112, cluster)
-    invVr <- ginv(Vr)
-    LM <- drop(crossprod(colSums(Scr2), invVr$inverse %*% colSums(Scr2)))
+    LM <- qf(Vr, colSums(Scr2), tol=tol)
 
-    tests <- list(W=Wa, df=invVu$rank, p_W=1-stats::pchisq(Wa, df=invVu$rank),
-                  LM=LM, df=invVr$rank, p_LM=1-stats::pchisq(LM, df=invVr$rank))
+    tests <- list(W=Wa$qf, df=Wa[[2]], p_W=1-stats::pchisq(Wa$qf, df=Wa[[2]]),
+                  LM=LM$qf, df=LM[[2]], p_LM=1-stats::pchisq(LM$qf, df=LM[[2]]))
 
     ## Generalized overlap weights: standard errors
     lam <- 1/rowSums(1/pis)
@@ -185,9 +192,8 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
         psi_or <- ws^2*lam/sum(ws^2*lam) * (Xf[, -1]*ipi[, -1]-Xf[, 1]*ipi[, 1])
         seO[, 5] <- sehat(ri$residuals*psi_or, cluster)
 
-        ## Final step: calculate se_po for overlap weights. First score and
-        ## Hessian. model.matrix rather than ml$residuals to account for
-        ## rounding
+        ## Final step: calculate se_po for overlap weights. model.matrix rather
+        ## than ml$residuals to account for rounding
         f1 <- function(x) colSums(x*ws^2*cw*ro$residuals*Zm)
         M0 <- as.vector(apply(lam*ipi[, -1, drop=FALSE]*Xf[, 1], 2, f1))
         M <- matrix(nrow=K*L, ncol=K) # M_k(theta)
@@ -195,7 +201,8 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL) {
             M[, k] <- as.vector(apply((lam*ipi[, -1]-rep(1, nrow(Zm)) %o%
                                            ((1:K)==k)) * Xf[, k+1], 2, f1))
         }
-        ## Drop the collinear columns, then decrease tol to ensure it inverts
+        ## TODO: Drop the collinear columns, then decrease tol to ensure it
+        ## inverts
         qHe <- qr(He)
         idx <- qHe$pivot[seq.int(qHe$rank)]
         a <- t(crossprod((M-M0)[idx, ], qr.solve(He[idx, idx], t(Sc[, idx]),

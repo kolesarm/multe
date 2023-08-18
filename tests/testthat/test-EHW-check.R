@@ -38,7 +38,6 @@ test_that("Test Fryer and Levitt", {
     r1 <- stats::lm(std_iq_24~race+factor(age_24)+female, weight=W2C0, data=fl)
     m1 <- multe(r1, "race", cluster=NULL)
 
-
     ## Test we match stata: 1 non-strata control, overlap
     e1 <- -c(0.38214850861, 0.43152780424, 0.21524163702, 0.23674243795)
     a1 <- -c(0.38224046376, 0.43220093709, 0.21494788553, 0.23918436629)
@@ -98,7 +97,8 @@ test_that("Test Fryer and Levitt", {
 
 test_that("No controls", {
     r1 <- stats::lm(std_iq_24~race, weight=W2C0, data=fl)
-    expect_error(m1 <- multe(r1, "race"))
+    expect_error(m1 <- multe(r1, "race"),
+                 "There are no controls beyond the intercept")
 })
 
 test_that("Test binomial treatment", {
@@ -114,10 +114,48 @@ test_that("Test binomial treatment", {
                      estEW=0.38495380524, seEW=0.01955413026, ns=nobs(r1))
     testthat::expect_identical(sum(t1 <= c(1e-10, 1e-9, 2e-4, 1e-9, 1e-9, 1e-8,
                                            1e-10, 1e-9)), 8L)
-
     expect_lt(max(abs(m1$est_f[, 4]-m1$est_f[, 5])), 1e-6)
-    ## logLik(g1)
-    ## g1 <- glm(I(race=="White") ~ female, data=fl, family="binomial")
+})
+
+test_that("Simple examples", {
+    ## Lack of overlap, Example 4 in notes
+    W <- c(rep(0, 12), rep(1, 12))
+    D <- c(rep(0:2, 4), rep(1:2, 6))
+    Y <- (D==2) + D*W
+    d1 <- decomposition(Y, as.factor(D), cbind(1, W))
+    testthat::expect_identical(sum(is.na(d1$A[, 2:3])), 12L)
+    ## TODO: LM and Wald
+    s <- 10/9
+    beta <- c(((s-1/3)*0+1/3*1-2/3)/s, ((s-1/3)*1+1/3*2)/s)
+    testthat::expect_equal(unname(d1$A[c(1, 4), 1]), beta)
+
+    ## Lack of overlap, Example 5, also in the slides
+    W <- c(rep(0, 12), rep(1, 12))
+    D <- c(rep(0:2, 4), rep(0:1, 6))
+    Y <- (D==2) + D*W
+    d2 <- decomposition(Y, as.factor(D), cbind(1, W))
+    ra <- range(cbind(d2$A[-c(3, 6), 1:2], d2$B[, c(2, 4)])-
+                    rbind(c(6/10, 6/10, 0, 0),
+                          c(0.1095445115, 1.095445115e-01, 0, 0),
+                          c(13L/10L, 1L, 3/10, 3/10),
+                          c(0.1193733639, 0, 1.193733639e-01, 1.193733639e-01)))
+    testthat::expect_lt(diff(ra), 1e-10)
+
+    ## Simple LM test
+    gr <- expand.grid(S=c(6, 10), p=c(2, 3, 10))
+    for (j in seq_len(NROW(gr))) {
+        D <- rep(c(rep(0:1, gr$S[j]/2), rep(0, gr$S[j])), gr$p[j])
+        W <- factor(rep(1:(2*gr$p[j]), each=gr$S[j]))
+        r1 <- lm(0*D~factor(D)+W)
+        msg <- paste0("For variable W the following levels fail overlap:\n",
+                      paste(2*(1:gr$p[j]), collapse=", "))
+        expect_message(m1 <- multe(r1, treatment="factor(D)"),
+                       msg)
+        expect_lt(m1$t_f[[1]], 1e-6)
+        expect_equal(unname(unlist(m1$t_f))[c(2, 4:6)],
+                     c(gr$p[j]-1, 2*gr$p[j]*gr$S[j]/3, 2*gr$p[j]-1,
+                       1-pchisq(2*gr$p[j]*gr$S[j]/3, df=2*gr$p[j]-1)))
+    }
 })
 
 ## TODO: Test LM, own, and CW.
