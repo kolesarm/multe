@@ -148,7 +148,7 @@ test_that("Simple examples", {
         W <- factor(rep(1:(2*gr$p[j]), each=gr$S[j]))
         r1 <- lm(0*D~factor(D)+W)
         msg <- paste0("For variable W the following levels fail overlap:\n",
-                      paste(2*(1:gr$p[j]), collapse=", "))
+                      paste(2 * (1:gr$p[j]), collapse=", "))
         expect_message(m1 <- multe(r1, treatment="factor(D)"),
                        msg)
         expect_lt(m1$t_f[[1]], 1e-6)

@@ -7,7 +7,7 @@ qf <- function(A, b, tol) {
 ## scale range of vector to [0,1]
 scaleRange <- function(x) {
     d <- diff(range(x))
-    if (d>0) x <-(x-min(x))/d
+    if (d>0) x <- (x-min(x))/d
     x
 }
 
