@@ -4,7 +4,7 @@
 \alias{multe}
 \title{Contamination Bias Diagnostics for Multiple Treatments}
 \usage{
-multe(r, treatment_name, cluster = NULL, tol = 1e-07)
+multe(r, treatment_name, cluster = NULL, tol = 1e-07, cw_uniform = FALSE)
 }
 \arguments{
 \item{r}{Fitted model, output of the \code{lm} function.}
@@ -15,11 +15,49 @@ multe(r, treatment_name, cluster = NULL, tol = 1e-07)
 supplied), the command computes heteroscedasticity-robust standard
 errors, rather than cluster-robust standard errors.}
 
-\item{tol}{Numerical tolerance for computing LM test statistic}
+\item{tol}{Numerical tolerance for computing LM test statistic for testing
+variability of the propensity score.}
+
+\item{cw_uniform}{For the CW estimator, use target efficiency when all
+comparisons have equal probability (if \code{FALSE}), or draw from the
+marginal distribution of treatments (if \code{TRUE})?}
 }
 \value{
-Returns a list with the following components: TODO
+Returns a list with the following components: \describe{
+
+\item{est_f}{Data frame with alternative estimators and standard errors for
+the full sample}
+
+\item{est_o}{Data frame with alternative estimators and standard errors for
+the overlap sample}
+
+\item{cb_f, cb_0}{Data frame with differences between PL and alternative
+estimators, along with standard errors for the full, and for the overlap
+sample.}
+
+\item{n_f, n_o}{Sample sizes for the full, and for the overlap sample.}
+
+\item{k_f, k_o}{Number of controls for the full, and for the overlap sample.}
+
+\item{t_f, t_o}{LM and Wald statistic, degrees of freedom, and p-values for
+the full and for the overlap sample, for testing the hypothesis of no
+variation in the propensity scores.}
+
+}
 }
 \description{
 Contamination Bias Diagnostics for Multiple Treatments
+}
+\examples{
+wbh <- fl[fl$race=="White" | fl$race=="Black" | fl$race=="Hispanic", ]
+wbh <- droplevels(wbh)
+r1 <- stats::lm(std_iq_24~race+factor(age_24)+female, weight=W2C0, data=wbh)
+m1 <- multe(r1, treatment="race")
+}
+\references{
+{
+
+\cite{Paul Goldsmith-Pinkham, Peter Hull, and Michal Kolesár. Contamination
+bias in linear regressions. ArXiv:2106.05024, August 2022.}
+}
 }

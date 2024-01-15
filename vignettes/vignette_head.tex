@@ -1,0 +1,17 @@
+\usepackage{mathtools}
+\usepackage{bbm} % blackboard math for computer modern
+% A starred version \abs*{} is produces delimiters that are preceded by \left
+% and \right, or use \abs[\Bigg]{\frac{a}{b}}
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}
+\DeclarePairedDelimiter\norm{\lVert}{\rVert}
+\DeclarePairedDelimiter\indicatorfence{\{}{\}}
+\newcommand\1{\operatorname{\mathbbm{1}}\indicatorfence}
+\DeclareMathOperator{\diag}{diag}
+\newcommand{\hbo}{\hat{\beta}^{\textnormal{Own}}}
+\newcommand{\hbcb}{\hat{\beta}^{\textnormal{CB}}}
+\newcommand{\hbate}{\hat{\beta}^{\textnormal{ATE}}}
+\newcommand{\hbew}{\hat{\beta}^{\textnormal{EW}}}
+\newcommand{\hbcw}{\hat{\beta}^{\textnormal{CW}}}
+\newcommand{\lcw}{\lambda^{\textnormal{CW}}}
+\usepackage{accents}
+\newcommand{\dbtilde}[1]{\accentset{\approx}{#1}}

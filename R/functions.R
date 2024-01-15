@@ -33,6 +33,8 @@ reg_if <- function(res, qrx) {
 
 Vhat <- function(psi, cluster=NULL) {
     if (!is.null(cluster)) {
+        if (!is.factor(cluster))
+            stop("Cluster variable must be a factor")
         cluster <- droplevels(cluster)
         nS <- nlevels(cluster)
         psi <- sqrt(nS / (nS-1)) *
@@ -69,9 +71,10 @@ multHessian <- function(ml, Z=stats::model.matrix(ml)) {
 ## matrix of controls Zm, first column is the intercept; X must be a factor,
 ## first level to be dropped. wgt are weights, and cluster is a factor variable
 ## signifying cluster membership
-decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
-    ## For nnet::multinom, the rhs variables be roughly scaled to [0,1]
-    ## or the fit will be slow or may not converge at all.
+decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7,
+                          cw_uniform=TRUE) {
+    ## For nnet::multinom, if rhs variables not roughly scaled to [0,1] fit will
+    ## be slow or may not converge at all.
     Zm <- apply(Zm, 2, scaleRange)
 
     ## Drop columns with no variation
@@ -99,7 +102,7 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     gam <- matrix(ri$coefficients[-(1:L)], nrow=L)-ri$coefficients[1:L]
     Zb <- apply(Zm, 2, stats::weighted.mean, ws^2) # weighted colMeans(Zb)
     estA[, 3] <- Zb %*% gam
-    psi_al <- reg_if(ws*ri$residuals, ri$qr)
+    psi_al <- reg_if(ws*ri$residuals, ri$qr) # psi(alpha)
 
     psi_ate <- vapply(0:K, function(k) drop(psi_al[, (k*L+1):((k+1)*L)] %*% Zb),
                       numeric(length=NROW(Zm)))
@@ -145,7 +148,7 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
         seB[k, 4] <- sehat(psi_1, cluster)
     }
 
-    ## Generalized overlap weights
+    ## Generalized overlap weights + Wald and LM tests
 
     ## nnet by Brian Ripley. Convergence: ml$convergence==0, ml$value
     ml <- nnet::multinom(X~0+Zm, abstol=1e-12, reltol=1e-12, trace=FALSE,
@@ -184,7 +187,6 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
     Her <- multHessian(ml)
     Her1112 <- solve(Her[idx1, idx1, drop=FALSE], Her[idx1, -idx1, drop=FALSE])
     Vr <- Vhat(Scr2 - Scr1 %*% Her1112, cluster)
-    ## TODO: Drop Wald
     testcov <- function(tol) {
         LM <- qfp(Vr, colSums(Scr2), tol=tol)
         Wa <- qfp(Vu, th, tol=tol)
@@ -201,10 +203,14 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
                 ", the statistic is: ", tests2$LM, ", with df: ", tests2$LM_df)
     }
 
-    ## Generalized overlap weights: standard errors
-    lam <- 1/rowSums(1/pis)
+    ## Generalized overlap weights + standard errors
+    if (!cw_uniform)
+        vpi <- pis0 * (1-pis0)
+    else
+        vpi <- 1
+    lam <- 1/rowSums(vpi/pis)
+    lam[lam<max(lam)*1e-6] <- 0 # round to exact zero
     ipi <- 1/pmax(pis, 1e-10)    # don't divide by zero
-    lam[lam<max(lam)*10e-6] <- 0 # round to exact zero
     cw <- lam/rowSums(Xf*pis)
 
     if (sum(lam)>0) {
@@ -216,10 +222,10 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
         ## Final step: calculate se_po for overlap weights. model.matrix rather
         ## than ml$residuals to account for rounding
         f1 <- function(x) colSums(x*ws^2*cw*ro$residuals*Zm)
-        M0 <- as.vector(apply(lam*ipi[, -1, drop=FALSE]*Xf[, 1], 2, f1))
+        M0 <- as.vector(apply(lam * (vpi*ipi)[, -1, drop=FALSE]*Xf[, 1], 2, f1))
         M <- matrix(nrow=K*L, ncol=K) # M_k(theta)
         for (k in seq_len(K)) {
-            M[, k] <- as.vector(apply((lam*ipi[, -1]-rep(1, nrow(Zm)) %o%
+            M[, k] <- as.vector(apply((lam* (vpi*ipi)[, -1]-rep(1, nrow(Zm)) %o%
                                            ((1:K)==k)) * Xf[, k+1], 2, f1))
         }
         ## TODO: Drop the collinear columns, then decrease tol to ensure it
@@ -253,7 +259,7 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7) {
 }
 
 
-write_rd_table <- function(a, col=2, file, digits=3) {
+write_rd_table <- function(a, col=2, file, digits=3, star=FALSE) {
     T1 <- a$est_f
     T2 <- a$cb_f
     ns <- c(a$n_f, NA, NA, NA, NA)
@@ -276,9 +282,10 @@ write_rd_table <- function(a, col=2, file, digits=3) {
     pop <- (seq.int(nrow(T1)/3)-1)*3+1
     odd <- (seq.int(nrow(T2)/2)-1)*2+1
 
-    star1 <- (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(0.95)) +
-        (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(0.975)) +
-        (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(0.995))
+    s_level <-  if (star) 0.05 else 0
+    star1 <- (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(1-s_level)) +
+        (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(1-s_level/2)) +
+        (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(1-s_level/10))
     star1[is.na(star1)] <- 0L
 
     format_int <- function(x) format(x, nsmall=0, big.mark=",")
@@ -293,12 +300,7 @@ write_rd_table <- function(a, col=2, file, digits=3) {
     t1[pop, ] <- ifelse(star1==1, paste0(t1[pop, ], "$^{*}$"), t1[pop, ])
     ks <- ifelse(is.na(ks), "", format_int(ks))
     ns <- ifelse(is.na(ns), "", format_int(ns))
-    t1t <- rbind(statistic=ifelse(is.na(tests[1, ]), "",
-                                  formatC(tests[1, ], format="g",
-                                          digits=digits+1)),
-                 "p-value"=ifelse(is.na(tests[3, ]), "", format_re(tests[3, ])),
-                 DOF=ifelse(is.na(tests[2, ]), "", format_int(tests[2, ])))
-    t1 <- rbind(t1, t1t, ks, ns)
+    t1 <- rbind(t1, ks, ns)
 
     t2 <- ifelse(is.na(T2), "", format_re(T2))
     t2[odd+1, ] <- paste0("(", paste(t2[odd+1, ], sep=","), ")")

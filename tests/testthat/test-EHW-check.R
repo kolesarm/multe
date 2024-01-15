@@ -173,5 +173,14 @@ test_that("Simple examples", {
                    "statistic is: 979.46, with df: 35")
 })
 
+test_that("Input checks", {
+    wbh <- fl[fl$race=="White" | fl$race=="Black" | fl$race=="Hispanic", ]
+    wbh <- droplevels(wbh)
+    r1 <- stats::lm(std_iq_24~race+factor(age_24)+female, weight=W2C0, data=wbh)
+    testthat::expect_error(multe(r1, treatment="race",
+                                 cluster=wbh$interviewer_ID_24))
+
+})
+
 ## TODO: Test LM, own, and CW.
 ## TODO: printCoefmat

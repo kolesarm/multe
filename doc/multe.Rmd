@@ -3,7 +3,10 @@ output:
   pdf_document:
     citation_package: natbib
     latex_engine: pdflatex
-    toc: false
+    toc: true
+    toc_depth: 2
+    includes:
+        in_header: vignette_head.tex
     keep_tex: true
 title: "Multiple Treatment Effects Regression"
 author: "Michal Kolesár"
@@ -29,9 +32,536 @@ The package `multe` implements contamination bias diagnostics for regressions
 with multiple treatments developed in @ghk23. This vignette illustrates the
 methods using data from @FrLe13.
 
+First, we fit a regression of test scores on a race dummy (treatment of
+interest) and a few controls, weighting using sampling weights:
+
 ```{r setup}
 library("multe")
-2+2
+## Regression of IQ at 24 months on race indicators and baseline controls
+r1 <- stats::lm(std_iq_24~race+factor(age_24)+female+SES_quintile,
+                weight=W2C0, data=fl)
+## Compute alternatives estimates free of contamination bias
+m1 <- multe(r1, "race", cluster=NULL)
+print(m1, digits=3)
 ```
+
+The package reports five different estimators:
+
+1. PL: The uninteracted regression estimator based on the partially linear (PL)
+   model.
+2. OWN: The own-treatment effect component of the contamination bias
+   decomposition. If OWN is close to PL, as above, this indicates negligible
+   contamination bias.
+3. ATE: the unweighted ATE estimator.
+4. EW: the efficiently weighted ATE estimator that runs one-treatment-at-a-time
+   regression
+5. CW: weighted ATE estimator using efficient common weights, as in Corollary 2
+   in @ghk23.
+
+Precise definitions of these estimators are given in the Methods section below.
+
+In this example, the propensity score varies significantly with covariates, as
+indicated by the p-values of the Wald and LM tests.
+
+Including many controls may result in overlap failure, as the next example demonstrates:
+
+```{r r2}
+r2 <- stats::lm(std_iq_24~race+factor(age_24)+female+SES_quintile+
+                    factor(siblings)+family_structure, weight=W2C0, data=fl)
+m2 <- multe(r2, treatment="race")
+print(m2, digits=3)
+```
+
+The issue is that observations with 6 siblings never have race equal to `other`:
+
+```{r r3}
+table(fl$race[fl$siblings==6])
+```
+
+Thus, the ATE estimator comparing `other` to `white` cannot be computed. The
+package drops observations with 6 siblings from the sample to form an "overlap
+sample" (see Methods section below for precise construction of this sample),
+where the all estimators are identified.
+
+To check whether there is a significant difference between PL and the
+alternative estimators, the data frames `cb_f` and `cb_o` report differences
+between the estimates, along with standard errors for the full and overlap
+sample, respectively:
+
+```{r r4}
+print(m2$cb_f, digits=3)
+```
+
+We see statistically significant difference between the OWN and PL estimate
+(i.e. significant contamination bias) for all races.
+
+## Standard errors
+
+The package also computes
+"oracle" standard errors, in addition to the usual standard errors reported
+above. These can be accessed in the `est_f` component of the output:
+```{r r00}
+print(m1$est_f, digits=3)
+```
+
+These oracle standard errors don't account for estimation error in the
+propensity score, see Methods section below. Specifying the `cluster` argument
+allows for computation of clustered standard errors:
+
+```{r r0}
+## cluster in interviewer ID
+m1alt <- multe(r1, "race", cluster=factor(factor(fl$interviewer_ID_24)))
+print(m1alt, digits=3)
+```
+
+
+# Methods
+
+This section describes the implementation of the bias decomposition formula and
+the implementation of alternative estimators. Relative to @ghk23, we
+generalize the setup to allow for sampling weights $\omega_{i}^{2}$ (setting the
+sampling weights to one recovers unweighted formulas). We also explicitly deal
+with overlap issues.
+
+We are interested in the effect of treatment $D_{i}\in\{0,1,\dotsc, K\}$ on an
+outcome $Y_{i}$. Let $X_{i}=\1{D_{i}=1,\dotsc, D_{i}=K}$ denote a vector of
+treatment indicators, let $X_{i0}=\1{D_{i}=0}$, and let $Z_{i}=(1,W_{i}')'$
+denote a vector of controls, including an intercept. We focus on the case where
+the controls enter linearly, so that control functions take the form
+$\mathcal{G}=\{z'\gamma\colon \gamma\in\mathbb{R}^{1+\dim(W_i)}\}$.
+
+We assume that $\mu_{k}(W_i):=E[Y_{i}(k)\mid W_{i}]\in\mathcal{G}$, so that we may
+write $\mu_{k}(W_{i})=W_{i}'\alpha_{k}$ for some vectors $\alpha_{k}$,
+$k=0,\dotsc, K$. The average treatment effect (ATE) conditional on $W_{i}$ is
+then given by $\tau(W_{i})=Z_{i}'(\alpha_{k}-\alpha_{0})$, and $\alpha_{k}$
+correspond to the coefficients in the interacted regression
+\begin{equation}
+  Y_{i}=\sum_{k=0}^{K}X_{ik}Z_{i}'\alpha_{k}+\dot{U}_{i}\label{eq:linear_mu},
+    % =Z_{i}'\alpha_{0}+\sum_{k=1}^{K}X_{ik}Z_{i}'\gamma_{k}\label{eq:linear_gamma}
+    % &=\alpha_{0, k}+W_{i}'\alpha_{W, 0}+\sum_{k=1}^{K}X_{ik}\tau_{k}+\sum_{k=1}^{K}X_{ik}(W_{i}-E[W_{i}])'\gamma_{W, k}.
+    %   \label{eq:linear_tau}
+\end{equation}
+with $\dot{U}_{i}$ conditionally mean zero. The uninteracted estimator is given
+by estimating
+\begin{equation}\label{eq:uninteracted_linear}
+    Y_i=\sum_{k=1}^{K} X_{ik}\beta + Z_i'\phi +U_{i},
+\end{equation}
+by weighted least squares (WLS), yielding
+$\hat{\beta}=(\sum_{i}\omega_{i}^{2}\dot{X}_{i}\dot{X}_{i}')^{-1}\sum_{i}\omega_{i}^{2}\dot{X}_{i}Y_{i}$,
+where $\dot{X}$ is the sample residual from WLS regression of $X_{i}$ onto
+$Z_{i}$. By Proposition 1 in @ghk23, the population analog of $\hat{\beta}$,
+$\beta$, has the decomposition
+\begin{equation*}
+  \beta=E[\diag(\Lambda_{i})\tau(W_{i})]+E[\Lambda_{i}-\diag(\Lambda_{i})\tau(W_{i})],
+\end{equation*}
+where
+$\Lambda_{i}=E[\tilde{X}_{i}\tilde{X}_{i}']^{-1}E[\tilde{X}_{i}X_{i}\mid
+W_{i}]$, and $\tilde{X}_{i}$ is the population analog of $\dot{X}_{i}$, the
+population residual from regressing $X_{i}$ onto $W_{i}$. Let $\hat{\alpha}_{k}$
+denote the WLS estimates based on \eqref{eq:linear_mu}. By construction, the
+sample residuals from estimating \eqref{eq:linear_mu} and $Z_{i}$ are both
+orthogonal to $\dot{X}_{i}$. As a result, we obtain the exact decomposition
+\begin{equation}\label{eq:1}
+  \begin{split}
+    \hat{\beta}
+    &=E_{n}[\dot{X}_{i}\dot{X}_{i}']^{-1}E_{n}[\dot{X}_{i}Y_{i}]=
+      % E_{n}[\dot{X}_{i}\dot{X}_{i}']^{-1}
+      % E_{n}[\dot{X}_{i}\sum_{k=1}^{K}X_{ik}Z_{i}'(\hat{\alpha}_{k}-\hat{\alpha}_{0})]
+    \\
+    &    =
+      % E_{n}[\hat{\Lambda}_{i}\hat{\Gamma}'Z_{i}]=
+      E_{n}[\diag(\hat{\Lambda}_{i})\hat{\Gamma}'Z_{i}]+E_{n}[(\hat{\Lambda}_{i}-\diag(\hat{\Lambda}_{i}))\hat{\Gamma}'Z_{i}]
+      =:\hbo+\hbcb,
+  \end{split}
+\end{equation}
+where $\hat{\Gamma}$ is a matrix with columns
+$\gamma_{k}=\alpha_{k}-\alpha_{0}$,
+$\hat{\Lambda}_{i}=E_{n}[\dot{X}_{i}\dot{X}_{i}']^{-1}\dot{X}_{i}X_{i}'$, and
+$E_{n}[A_{i}]=\sum_{i}\omega_{i}^{2}A_{i}/\sum_{i}\omega_{i}^{2}$ denotes the
+weighted sample mean.
+
+To compute this decomposition, we don't need to explicitly compute
+$\hat{\Lambda}_{i}$. Instead, we use the identity
+\begin{equation*}
+  \hbo_{k}=e_{k}'E_{n}[\dot{X}_{i}\dot{X}_{i}']^{-1}E_{n}[\dot{X}_{i}X_{ik}Z_{i}'\hat{\gamma}_{k}]=\hat{\delta}_{k k}'
+  \hat{\gamma}_{k},
+\end{equation*}
+where $\hat{\delta}_{k k}$ is a WLS estimator of the system of regressions
+\begin{equation}\label{eq:delta_system}
+  Z_{i}X_{ik}=\delta_{k k}X_{ik}+\sum_{\ell\neq k}\delta_{k \ell}X_{i\ell}
+  +\Delta_{Z, k}Z_{i}+\zeta_{ik}.
+\end{equation}
+
+Note this decomposition and associated standard errors, in the next subsection, are purely
+regression-based, so they remain valid even if $X_{i}$ is not a set of binary
+indicators. Likewise, misspecification of the interacted regression only affects
+the interpretation of the decomposition; if $\mu_k$ is not linear, the
+decomposition will not consistently estimate the contamination bias.
+
+The own treatment weights in this decomposition sum to one, and the
+contamination weights sum to zero, since $E_{n}[\hat{\Lambda}_{i}]=I_{k}$,
+mimicking the population decomposition. If the propensity score doesn't satisfy
+$p_{k}\in\mathcal{G}$, the implied estimate of $\Lambda(w)$, \begin{equation*}
+\hat{\Lambda}(w)=\frac{1}{n}\sum_{i=1}^{n}\1{W_{i}=w}\hat{\Lambda}_{i}
+\end{equation*} may not be positive definite; in particular, the diagonal
+elements may not all be positive, in line with Proposition 1 in @ghk23.
+
+In addition to this decomposition, the package also computes the following
+alternative estimators:
+
+1. The unweighted ATE estimator, $\hbate_{k}=E_{n}[W_{i}]'\hat{\gamma}_{k}$
+2. The one-treatment-at-a time estimator $\hbew_{k}$ that fits
+   \eqref{eq:uninteracted_linear} using only observations with
+   $D_{i}\in\{0,k\}$. In other words, it estimates the regression
+   \begin{equation}\label{eq:1-at-a-time}
+   Y_{i}=\ddot{\phi}_{k}+X_{ik}\ddot{\beta}_{k}+W_{i}^\prime\ddot{\phi}_{k}+
+   \ddot{U}_{ik}, \end{equation} among observations with $D_{i}\in\{0,k\}$. This
+   estimator weights the treatment effects using the variance-minimizing
+   weighting scheme given in Corollary 1 in @ghk23. Consequently, we refer to as
+   the efficiently weighted ATE estimator.
+3. The common weights estimator $\hbcw$, given by the WLS regression of $Y_{i}$
+   onto $X_{i}$, weighting each observation by \begin{equation*}
+   \frac{\omega_{i}^{2}\pi_{D_{i}}(1-\pi_{D_{i}})}{\hat{p}_{D_{i}}(W_{i})\sum_{k=0}^{K}\hat{p}_{k}(W_{i})^{-1}},
+   \end{equation*} where, by default, the probabilities $\pi_{k}$ correspond to
+   the marginal probability $E_{n}[X_{ik}]$ in the dataset. The propensity
+   scores $\hat{p}_{k}(W_{i})$ are based on fitting a multinomial logit model
+   for the treatments. This estimator estimates a weighted ATE with weights
+   $\lambda^{\text{CW}}(W_{i})=\left(\sum_{k=0}^{K}\frac{\pi_{k}(1-\pi_{k})}{p_{k}(W_{i})}\right)^{-1}$.
+   By Corollary 2 in @ghk23, this weighting scheme minimizes the average
+   variance, under homoskedasticity, across all treatment
+   comparisons---comparisons of outcomes under treatment $k$ vs treatment
+   $\ell$, if we draw the treatments $k$ and $\ell$ independently from the
+   marginal treatment distribution $(\pi_{0},\dotsc,\pi_{K})$. Option
+   `cw_uniform=TRUE` in the `multe` function sets these probabilities to $1/K$;
+   setting the option to its default, `FALSE`, sets them to
+   $(E_{n}[X_{i0}],\dotsc,E_{n}[X_{i K}])$.
+
+## Standard errors
+
+To compute cluster-robust standard errors for an asymptotically linear estimator
+with influence function $\psi_{i}$, we use the formula
+\begin{equation*}
+  \widehat{\operatorname{se}}(\psi)^{2}=\frac{G}{G-1}\sum_{g}\left(\sum_{G_{i}= g}\psi_{i}\right)
+  \left(\sum_{G_{i}= g}\psi_{i}\right)'.
+\end{equation*}
+Here $G_{i}$ denotes cluster membership, as specified by the `multe` argument
+`cluster`, and $G$ the number of clusters. Specifying `cluster=NULL` assumes
+independent data, setting each observation to be in its own cluster ($G_{i}=i$
+and $G=N$), so the reported standard errors are robust to heteroskedasticity,
+but not clustering.
+
+We now describe the form of the influence function for the estimators above. For
+a generic WLS regression of $A$ onto $B$, let
+$(Q_{1},Q_{2}) \left(\begin{smallmatrix}
+                       R & S\\
+                       0 & 0
+\end{smallmatrix}\right)\Pi'$ denote the QR decomposition of $\diag(\omega_{i})B$. If $B$
+has rank $r$, then $R$ has dimension $r\times r$, $Q$ has dimension $N\times r$,
+where $r$ is the rank of the regressor matrix, and $\Pi$ is a permutation
+matrix. The WLS estimator is then given by $b=\Pi\left(\begin{smallmatrix}
+                                                         R^{-1}Q_{1}'\diag(\omega_{i})A\\
+                                                         \mathtt{NA}\end{smallmatrix}\right)$.
+  Denoting the regression residual by $\hat{\epsilon}_{i}$, the influence
+  function is thus given by
+\begin{equation}\label{eq:psi_reg}
+  \psi_{i}(b)=\Pi\left(\begin{smallmatrix}
+                         R^{-1}Q_{1i}\omega_{i}\hat{\epsilon}_{i}\\
+                         \mathtt{NA}\end{smallmatrix}\right).
+\end{equation}
+See the internal function `multe:::reg_if` for implementation. The
+influence function for the inner product of linear estimators $a$ and $b$, is by
+the delta method given by
+  \begin{equation*}
+    \psi_{i}(a' b)=a'\psi_{i}(b)+b'\psi_{i}(a),
+  \end{equation*}
+  while for scalars $s_{1},s_{2}$,
+  $\psi(s_{1}a+s_{2}b)=s_{1}\psi(a)+s_{2}\beta(b)$.
+
+We use \eqref{eq:psi_reg} to compute $\psi(\hat{\alpha}_{k})$, as well as
+\begin{align*}
+  \psi_{i}(\bar{Z})&=\frac{\omega_{i}^{2}(Z_{i}-\bar{Z})}{\sum_{i}\omega_{i}^{2}}\\
+  \psi_{i}(\hat{\delta}_{k k})&=\frac{\omega_{i}^{2}\hat{\zeta}_{ik}\ddot{X}_{ik}}{\sum_{i}\omega_{i}^{2}\ddot{X}_{ik}^{2}},
+\end{align*}
+where $\hat{\zeta}_{ik}$ is the WLS residual based on
+\eqref{eq:delta_system}, and $\ddot{X}_{ik}$ is the sample analog of
+$\dbtilde{X}_{ik}$, the residual from regressing $X_{ik}$ onto $X_{i, -k}$ and
+$Z_{i}$. It then follows from \eqref{eq:psi_reg} and the influence function
+formulas above, that
+\begin{align*}
+  \psi_{i}(\hbo_{k})&=\hat{\delta}_{k k}'\psi_{i}(\hat{\gamma}_{k})+
+                      \hat{\gamma}_{k}'\psi_{i}(\hat{\delta}_{k k})\\
+  \psi_{i}(\hat{\beta})&=\left(\sum_{i}\omega_{i}^{2}\dot{X}_{i}\dot{X}_{i}'\right)^{-1}\omega_{i}^{2}\dot{X}_{i}\hat{U}_{i}\\
+  \psi_{i}(\hbew_{k})&=\frac{\1{D_{i}\in\{0,k\}}
+                                \omega_{i}^{2}\hat{X}_{ik}\hat{U}_{ik}}{\sum_{i}\1{D_{i}\in\{0,k\}}\omega_{i}^{2}\hat{X}_{ik}^{2}}\\
+  \psi_{i}(\hbate_{k})&=\bar{Z}'\psi_{i}(\hat{\alpha}_{k}-\hat{\alpha}_{0})
+                                +\psi_{i}(\bar{Z})(\hat{\alpha}_{k}-\hat{\alpha}_{0}).
+\end{align*}
+where $\hat{X}_{ik}$ is the residual from regressing $X_{ik}$ onto $Z$ in the
+subset with $D_{i}\in\{0,k\}$, and $\hat{U}_{ik}$ the residual from regressing
+$Y_{i}$ onto $X_{ik}$ and $Z_{i}$ in this subsample.
+
+When the treatment is binary and overlap holds, the formula for
+$\psi_{i}(\hbate_{k})$ is similar to that discussed on page 29 in
+@imbens2009recent, except we don't assume that the regression error
+$V_{i}$ in \eqref{eq:linear_mu} is conditionally mean zero, so that the standard
+error is robust to misspecification.
+
+Derivations in the last section show that the influence function for the common
+weights estimator is given by
+$\hat{\psi}_{i}(\hbcw_{k})=\hat{\psi}_{i}(\hat{\alpha}^{\textnormal{CW}}_{k}-\hat{\alpha}^{\textnormal{CW}}_{k})$, where
+\begin{equation}\label{eq:psi_cw}
+  \hat{\psi}_{i}(\hat{\alpha}^{\textnormal{CW}}_{k})=
+  \frac{1}{\sum_{i}\lcw(W_{i})}\left(
+    \frac{\lcw(W_{i})X_{ik}}{\pi_{k}(W_{i};\hat{\theta})}(Y_{i}-\hat{\alpha}^{\textnormal{CW}}_{k})
+    +a_{i}(\hat{\theta})\right).
+\end{equation}
+
+with the formula for $a_i$ given in \eqref{eq:a_i} below, $\theta$ corresponds to
+the parameters in the multinomial logit model, $\pi_{k}(W_{i};\hat{\theta})$ to the fitted
+probabilities in this model, and $\hat{\alpha}^{\textnormal{CW}}_{k}$ is the
+estimate based on \eqref{eq:moment_overlap_weights} below.
+
+## Oracle standard errors
+
+The package also reports "oracle" standard errors, which interprets the
+alternative estimators as estimates of the contrasts
+\begin{equation*}
+  \beta_{\lambda,k}=\frac{\sum_{i=1}^{N}\lambda(W_{i})(\mu_{k}(W_{i})-\mu_{0}(W_{i}))}{\sum_{i=1}^{N}\lambda(W_{i})},
+\end{equation*}
+with $\lambda(W_{i})=1$ for the unweighted ATE, $\lambda(W_{i})=\lcw(W_{i})$ for
+the common weights estimator and
+$\lambda(W_{i})=\frac{p_{k}(W_{i})p_{0}(W_{i})}{p_{k}(W_{i})+p_{0}(W_{i})}$ for
+the efficiently weighted ATE estimator. In contrast, the standard errors in the
+previous subsection set the estimands to be the population counterparts to these
+weighted averages, replacing the sums in the above display with population
+expectations. In addition, the oracle standard errors don't account for
+estimation error in the propensity score $p(W_{i})$.
+
+For the unweighted ATE, the oracle standard error is based on the influence
+function
+$\tilde{\psi}_{i}(\hat{\beta}_{k}^{ATE})=\bar{Z}'\psi_{i}(\hat{\alpha}_{k}-\hat{\alpha}_{0})$.
+From the derivation in the last section, it follows that the oracle standard
+error for  $\hbew_{k}$ is given by
+\begin{equation}\label{eq:hbew_oracle}
+  \psi_{i}(\hbew_{k})=\frac{\1{D_{i}\in\{0,k\}}
+    \omega_{i}^{2}\hat{X}_{ik}\hat{\dot{U}}_{i}}{\sum_{i}\1{D_{i}\in\{0,k\}}\omega_{i}^{2}\hat{X}_{ik}^{2}},
+\end{equation}
+where $\hat{\dot{U}}_{i}$ is the interacted regression residual based on \eqref{eq:linear_mu}.
+
+Finally, the oracle standard errors for $\hbcw_{k}$ are based on the influence
+function
+$\tilde{\psi}_{i}(\hbcw_{k})=\tilde{\psi}_{i}(\hat{\alpha}^{\text{CW}}_{k})-\tilde{\psi}_{i}(\hat{\alpha}^{\text{CW}}_{0})$,
+where
+\begin{equation}\label{eq:overlap_oracle}
+  \tilde{\psi}_{i}(\hat{\alpha}^{\text{CW}}_{k})=\frac{\omega_{i}^{2}\lcw(W_{i};\hat{\theta})}{
+    \sum_{i}\omega_{i}^{2}\lcw(W_{i};\hat{\theta})}\frac{X_{ik}}{\pi_{k}(W_{i};\hat{\theta})}\hat{\dot{U}}_{i}.
+\end{equation}
+
+## Overlap sample
+
+The package applies the above formulas to the full sample. In cases with poor
+overlap, this may not yield well-defined estimates or bias decomposition for all
+treatments. For components of the decomposition and alternative estimators that
+are not identified, the package returns `NA`. In such cases, the package also
+returns results for a trimmed "overlap sample", where the decomposition and
+alternative estimators are all identified. The overlap sample is constructed as
+follows:
+
+1. Find a factor variable among the controls with the greatest number of levels.
+   If there are no factor variables, skip this step. If for some levels of this
+   variable, we don't see observations that take on one or more of the $K+1$
+   possible treatments, drop observations with these levels.
+2. For the remaining controls, if a control doesn't display any variation in the
+   subset of the data with treatment $k=0,\dotsc,K$, drop the control.
+
+
+## Wald and LM tests
+
+We now give the form of the Wald and LM tests for variation in the propensity
+score. First, we give a general derivation of these tests in a
+likelihood context when the Hessian may be reduced rank. We then specialize the
+formulas to the case where the likelihood corresponds to the that for the
+multinomial logit model.
+
+Consider a log-likelihood $\ell_{n}(\theta)$ for a $p$-dimensional parameter
+$\theta$, with score function $S$ that's approximately normal with covariance
+matrix $\Omega$, and Hessian $H$. We're interested in testing the hypothesis
+that last $r$ elements of $\theta$ are zero, $H_{0}\colon \theta_{2}=0$. We
+assume that the submatrix $H_{11}$ of the Hessian corresponding to the
+restricted model is full rank, but the full matrices $\Omega$ or $H$ may not be
+invertible.
+
+The score evaluated at the unrestricted estimator $\hat{\theta}$ satisfies
+\begin{equation*}
+  0=
+  \begin{pmatrix}
+    S_{1}(\hat{\theta}_{1},\hat{\theta}_{2})\\
+    S_{2}(\hat{\theta}_{1},\hat{\theta}_{2})
+  \end{pmatrix}=
+  \begin{pmatrix}
+    S_{1}(\theta_{1},0)\\
+    S_{2}(\theta_{1},0)
+  \end{pmatrix}+
+  \begin{pmatrix}
+    H_{11}(\hat{\theta}_{1}-\theta_{1}) + H_{12}\hat{\theta}_{2}\\
+    H_{21}(\hat{\theta}_{1}-\theta_{1}) + H_{22}\hat{\theta}_{2},
+  \end{pmatrix}
+\end{equation*}
+ignoring in the notation that the Hessian evaluated needs to be evaluated at
+intermediate values. Rearranging,
+\begin{equation*}
+  \begin{pmatrix}
+    \hat{\theta}_{1}-\theta_{1}\\
+    (H_{22}-H_{21}H_{11}^{-1}H_{12})\hat{\theta}_{2}
+  \end{pmatrix}
+=
+\begin{pmatrix}
+  -H_{11}^{-1}S_{1}(\theta_{1},0)-H_{11}^{-1}H_{12}\hat{\theta}_{2}\\
+  H_{21}H_{11}^{-1}S_{1}(\theta)-S_{2}(\theta)
+\end{pmatrix}
+\end{equation*}
+This yields the Wald statistic
+\begin{equation*}
+  W=\hat{\theta}_{2}'(H_{22}-H_{21}H_{11}^{-1}H_{12})'
+  \operatorname{var}(S_{2}(\theta_{1},0)-H_{21}H_{11}^{-1}S_{1}(\theta_{1},0))^{+}
+  (H_{22}-H_{21}H_{11}^{-1}H_{12})\hat{\theta}_{2},
+\end{equation*}
+where $A^{+}$ denotes a generalized inverse. By Lemma 9.7 in @NeMc94, the
+statistic has an asymptotic $\chi^{2}$ distribution with degrees of freedom
+equal to the rank of the variance.
+
+The score evaluated at the restricted estimator $\bar{\theta}_{1}$ satisfies
+\begin{equation*}
+  \begin{pmatrix}
+    0\\
+    S_{2}(\bar{\theta}_{1},0)
+  \end{pmatrix}=
+  \begin{pmatrix}
+    S_{1}(\theta_{1},0)\\
+    S_{2}(\theta_{1},0)
+  \end{pmatrix}+
+  \begin{pmatrix}
+    H_{11}(\bar{\theta}_{1}-\theta_{1})\\
+    H_{21}(\bar{\theta}_{1}-\theta_{1})
+  \end{pmatrix},
+\end{equation*}
+which implies
+$\bar{\theta}_{1}-\theta_{1}=-H_{11}^{-1}S_{1}(\theta_{1},0)$, and hence
+\begin{equation*}
+  S_{2}(\bar{\theta}_{1},0)
+  =S_{2}(\theta_{1},0)-H_{21}H_{11}^{-1}S_{1}(\theta_{1},0).
+\end{equation*}
+Thus the statistic
+\begin{equation*}
+  LM=S_{2}(\bar{\theta}_{1},0)'\operatorname{var}(S_{2}(\theta_{1},0)-H_{21}H_{11}^{-1}S_{1}(\theta_{1},0))^{+}
+  S_{2}(\bar{\theta}_{1},0)
+\end{equation*}
+will again have a $\chi^{2}$ distribution.
+
+To apply these formulas in the context of a multinomial logit model, we use the
+score and the Hessian
+\begin{equation*}
+  S(\theta)=  \sum_{i}\omega^{2}_{i}(X_{i}-\pi(Z_{i};\theta))\otimes Z_{i},\quad
+  H(\theta)=
+  -\sum_{i}\omega^{2}_{i}(\diag(\pi(Z_{i};\theta))-\pi(Z_{i};)\pi(Z_{i})')\otimes Z_{i}Z_{i}'
+\end{equation*}
+
+# Derivations
+
+*We first derive \eqref{eq:psi_cw}*. Observe first that the common weights
+estimator is identical to the two-step GMM estimator that in the first step,
+fits a multinomial logit model
+\begin{equation}\label{eq:m-n-l}
+  P(D_{i}=k\mid W_{i})=\frac{e^{Z_{i}'\theta_{k}}}{\sum_{k'=0}^{K}e^{Z_{i}'\theta_{k'}}}=:  \pi_{k}(W_{i},\theta),
+\end{equation}
+with the normalization $\theta_{0}=0$. In the second step, we use the moment condition
+\begin{equation}\label{eq:moment_overlap_weights}
+  E\left[\frac{\lcw(W_{i};\theta)X_{ik}}{\pi_{k}(W_{i};\theta)}(Y_{i}-\alpha^{\text{CW}}_{k})\right]=0.
+\end{equation}
+to obtain estimates $\hat\alpha^{\text{CW}}_{k}$, and set $\hbcw_k=\hat\alpha^{\text{CW}}_{k}-\hat\alpha^{\text{CW}}_{0}$.
+
+Let
+\begin{equation*}
+ \zeta_{k}(W_{i};\hat{\theta})=\frac{\lcw(W_{i};\hat{\theta})}{\pi_{k}(W_{i},\hat{\theta})}
+  % =\frac{1}{\pi_{k}(W_{i},\hat{\theta})\sum_{k'=0}^{K}\frac{\pi_{k'}(1-\pi_{k'})}{\pi_{k}(W_{i};\hat{\theta})}}
+  =\frac{e^{-Z_{i}'\hat{\theta}_{k}}}{\sum_{j=0}^{K}\pi_{j}(1-\pi_{j})e^{-Z_{i}'\hat{\theta}_{j}}}
+\end{equation*}
+By equation (6.6) in @NeMc94, the influence function of this two-step
+estimator is given by
+\begin{equation*}
+\psi_{i}(\hat{\alpha}^{\textnormal{CW}}_{k})=  \frac{1}{E[\lcw(W_{i})]}\left(
+\frac{\lcw(W_{i})X_{ik}}{\pi_{k}(W_{i})}(Y_{i}-\alpha^{\text{CW}}_{k})
++M_{k}(\theta)\psi_{i}(\theta)\right),
+\end{equation*}
+where $\psi_{i}(\theta)$ is the influence function of the multinomial logit
+estimator $\hat{\theta}$, and $M_{k}(\theta)$ is the derivative of
+\eqref{eq:moment_overlap_weights} wrt $\theta$.
+
+Since
+$\partial \zeta_{k}(W_{i};\theta)/\partial \theta_{j}=
+Z_{i}\zeta_{k}(W_{i};\theta)[\pi_{j}(1-\pi_{j})\zeta_{k}(W_{i};\theta)-\1{k=j>0}]$, it follows that
+\begin{equation*}
+  M_{k}(\theta)=
+E[(\eta-e_{k})\otimes Z_{i}\cdot \zeta_{k}X_{ik}(Y_{i}-\alpha_{\lambda^{C},k})],\qquad\eta=(
+\pi_{j}(1-\pi_{j})\zeta_{j}, \dotsc,\pi_{K}(1-\pi_{K})\zeta_{K})'.
+\end{equation*}
+Since the multinomial logit log-likelihood is given by
+$\ell_{i}=\sum_{k=0}^{K}X_{k}\log(\pi_{k})=\sum_{k=0}^{K}X_{k}Z_{i}'\theta_{k}
+-\log(\sum_{k=0}^{K}e^{Z_{i}'\theta_{k}})$, the score and the Hessian are
+\begin{equation*}
+  S_{i}(\theta)=(X_{i}-\pi(W_{i};\theta))\otimes Z_{i},\qquad
+  H(\theta)=-E_{n}[(\diag(\pi(W_{i}))-\pi(W_{i})\pi(W_{i})')\otimes Z_{i}Z_{i}'],
+\end{equation*}
+Since $\psi_{i}(\theta)=-H(\theta)^{-1}S_{i}(\theta)$, this yields
+\begin{equation}\label{eq:a_i}
+  a_{i}(\theta)=\hat{M}_{k}(\hat{\theta})
+  \hat{H}(\hat{\theta})^{-1}S_{i}(\theta),
+  \qquad S_{i}(\theta)=
+  (X_{i}-\pi(W_{i};\theta))\otimes Z_{i},
+\end{equation}
+with $\hat{M}_{k}({\theta})=\left(\sum_{i}(\zeta-e_{k})\otimes Z_{i}\cdot
+  \zeta_{k}X_{ik}(Y_{i}-\alpha_{\lambda^{C},k})\right)$, and $\hat{H}({\theta})=
+  \sum_{i}(\diag(\pi(W_{i}))-\pi(W_{i})\pi(W_{i})')\otimes Z_{i}Z_{i}'$.
+When $\pi_k=1/(K+1)$ this formula reduces to that in Theorem 1 in @lili19.
+
+*Next, we show \eqref{eq:hbew_oracle}*. Note that it follows from Proposition 2 in
+@ghk23 that the efficient influence function is given by
+\begin{multline*}
+  \psi_{i}({\alpha}_{\lambda_{k},k0})=
+  \frac{\lambda(W_{i})}{E[\lambda(W_{i})]}\left(\frac{X_{ik}}{p_{k}(W_{i})}(Y_{i}-\mu_{k}(W_{i}))
+    -  \frac{X_{i0}}{p_{0}(W_{i})}(Y_{i}-\mu_{0}(W_{i}))\right)\\
+  =  \frac{X_{ik}+X_{i0}}{E[\lambda(W_{i})]}\left(X_{ik}-r_{k}\right)V_{i}=
+  \frac{(X_{ik}+X_{i0})(X_{ik}-r_{k})V_{i}}{E[(X_{ik}+X_{i0})(X_{ik}-r_{k})^{2}]},
+\end{multline*}
+where $r_{k}=r_{k}(W_{i})=E[X_{ik}\mid W_i,X_{ik}+X_{i0}=1]$. The result then follows
+since $\hat{X}_{ik}$ is an estimator of $X_{ik}-r_{k}(W_{i})$.
+
+*Finally, we show \eqref{eq:overlap_oracle}*. The derivative of the moment condition
+\eqref{eq:moment_overlap_weights} with respect to $\pi_{k}=p_{k}$ (assuming
+correct specification of the propensity score) is given by
+\begin{equation*}
+  -E[\lambda\frac{X_{ik}}{p_{k}^{2}(W_{i})} (\mu_{k}-\alpha^{\text{CW}}_{k})\dot{p}_{k}(W_{i})],
+\end{equation*}
+where we write $\lambda$ for $\lcw(W_{i})$. Since $p_{k}$ is a projection, by
+Proposition 4 in @newey94ecta, the influence function for
+$\hat{\alpha}^{\text{CW}}_{k}$ is given by
+\begin{multline*}
+  \frac{1}{E[\lambda]}\left(  \lambda \frac{X_{ik}}{p_{k}(W_{i})}(Y_{i}-\alpha^{\text{CW}}_{k})
+    -\frac{\lambda}{p_{k}(W_{i})}(\mu_{k}(W_{i})-\alpha^{\text{CW}}_{k})(X_{ik}-p_{k}(W_{i}))\right)\\
+  =
+  \frac{1}{E[\lambda]}\left(  \lambda\frac{X_{ik}}{p_{k}(W_{i})}(Y_{i}-\mu_{k}(W_{i}))
+    +  \lambda(\mu_{k}(W_{i})-\alpha^{\text{CW}}_{k})
+\right).
+\end{multline*}
+Next, as noted in @AbImZh14, we can view
+$\tilde{\alpha}^{\text{CW}}_{k}=\sum_{i}\lambda\mu_{k}(W_{i})/\sum_{i}\lambda$ as an estimator of
+${\alpha}^{\text{CW}}_{k}$ based on the moment condition
+$E[\lambda(\mu_{k}(W_{i})-{\alpha}^{CW}_{k})]=0$, which by standard
+arguments has influence function given by
+$\frac{\lambda}{E[\lambda]}(\mu_{k}(W_{i})-{\alpha}^{\text{CW}}_{k})$. Since
+$\hat{\alpha}^{\text{CW}}_{k}-\alpha^{CW}_{k}=(\hat{\alpha}^{\text{CW}}_{k}-{\alpha}^{\text{CW}}_{k})-({\alpha}^{\text{CW}}_{k}
+-\tilde{\alpha}^{\text{CW}}_{k})$,
+we subtract this influence function from the preceding display to obtain \eqref{eq:overlap_oracle}.
+
 
 # References

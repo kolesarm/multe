@@ -13,10 +13,44 @@ build_matrix <- function(Cm, S)  {
 #' @param cluster Factor variable that defines clusters. If \code{NULL} (or not
 #'     supplied), the command computes heteroscedasticity-robust standard
 #'     errors, rather than cluster-robust standard errors.
-#' @param tol Numerical tolerance for computing LM test statistic
-#' @return Returns a list with the following components: TODO
+#' @param tol Numerical tolerance for computing LM test statistic for testing
+#'     variability of the propensity score.
+#' @param cw_uniform For the CW estimator, use target efficiency when all
+#'     comparisons have equal probability (if \code{FALSE}), or draw from the
+#'     marginal distribution of treatments (if \code{TRUE})?
+#' @return Returns a list with the following components: \describe{
+#'
+#' \item{est_f}{Data frame with alternative estimators and standard errors for
+#' the full sample}
+#'
+#' \item{est_o}{Data frame with alternative estimators and standard errors for
+#' the overlap sample}
+#'
+#' \item{cb_f, cb_0}{Data frame with differences between PL and alternative
+#' estimators, along with standard errors for the full, and for the overlap
+#' sample.}
+#'
+#' \item{n_f, n_o}{Sample sizes for the full, and for the overlap sample.}
+#'
+#' \item{k_f, k_o}{Number of controls for the full, and for the overlap sample.}
+#'
+#' \item{t_f, t_o}{LM and Wald statistic, degrees of freedom, and p-values for
+#' the full and for the overlap sample, for testing the hypothesis of no
+#' variation in the propensity scores.}
+#'
+#' }
+#' @references{
+#'
+#' \cite{Paul Goldsmith-Pinkham, Peter Hull, and Michal Kolesár. Contamination
+#' bias in linear regressions. ArXiv:2106.05024, August 2022.}
+#' }
+#' @examples
+#' wbh <- fl[fl$race=="White" | fl$race=="Black" | fl$race=="Hispanic", ]
+#' wbh <- droplevels(wbh)
+#' r1 <- stats::lm(std_iq_24~race+factor(age_24)+female, weight=W2C0, data=wbh)
+#' m1 <- multe(r1, treatment="race")
 #' @export
-multe <- function(r, treatment_name, cluster=NULL, tol=1e-7) {
+multe <- function(r, treatment_name, cluster=NULL, tol=1e-7, cw_uniform=FALSE) {
     Y <- stats::model.response(r$model)
     wgt <- stats::model.weights(r$model)
     X <- r$model[, treatment_name]
@@ -57,7 +91,9 @@ multe <- function(r, treatment_name, cluster=NULL, tol=1e-7) {
         cluster <- cluster[ok]
     }
 
-    r1 <- decomposition(Y, X, build_matrix(Cm, S), wgt, cluster, tol)
+    r1 <- decomposition(Y, X, build_matrix(Cm, S), wgt, cluster, tol,
+                        cw_uniform)
+
     n1 <- length(Y)
     k1 <- NCOL(build_matrix(Cm, S))-1L
 
@@ -101,7 +137,7 @@ multe <- function(r, treatment_name, cluster=NULL, tol=1e-7) {
     if (length(Y)==0) {
         message("Overlap sample is empty")
     } else if (sum(dropctrl) > 0 || sum(idx) > 0) {
-        r2 <- decomposition(Y, X, Zm, wgt, cluster, tol)
+        r2 <- decomposition(Y, X, Zm, wgt, cluster, tol, cw_uniform)
         n2 <- length(Y)
         k2 <- NCOL(Zm)-1L
     }
@@ -114,9 +150,16 @@ multe <- function(r, treatment_name, cluster=NULL, tol=1e-7) {
 #' @export
 print.multe <- function(x, digits=getOption("digits"), ...) {
     cat("Estimates on full sample:\n")
-    print(x$est_f, digits=digits)
+    oracle <- (seq.int(nrow(x$est_f)/3)-1)*3+3
+    rownames(x$est_f)[oracle-1] <- rep("SE", length(oracle))
+    print(x$est_f[-oracle, ], digits=digits)
     if (!is.null(x$est_o)) {
+        rownames(x$est_o)[oracle-1] <- rep("SE", length(oracle))
         cat("\nEstimates on overlap sample:\n")
-        print(x$est_o, digits=digits)
+        print(x$est_o[-oracle, ], digits=digits)
     }
+    cat("\nP-values for null hypothesis of no propensity score variation:\n")
+    cat("Wald test:", round(x$t_f$p_W, digits=digits))
+    cat(", LM test:", round(x$t_f$p_LM, digits=digits), "\n")
+
 }
