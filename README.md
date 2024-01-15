@@ -2,10 +2,14 @@
 
 [![R-CMD-check](https://github.com/kolesarm/multe/workflows/R-CMD-check/badge.svg)](https://github.com/kolesarm/multe/actions) [![Coverage status](https://codecov.io/gh/kolesarm/multe/branch/master/graph/badge.svg)](https://codecov.io/github/kolesarm/multe?branch=master)
 
-This R package implements contamination bias diagnostics, using procedures from [Goldsmith-Pinkham, Hull, and Kolesár (2023)](https://arxiv.org/abs/2106.05024). See the package
-[manual](doc/manual.pdf) for documentation of the package functions. See
-[multe-stata](https://github.com/gphk-metrics/stata-multe) for a Stata
+This R package implements contamination bias diagnostics, using procedures from
+[Goldsmith-Pinkham, Hull, and Kolesár (2023)](https://arxiv.org/abs/2106.05024).
+See [multe-stata](https://github.com/gphk-metrics/stata-multe) for a Stata
 version of this package.
+
+See vignette [multe](doc/multe.pdf) for description of the package
+(available through `vignette("multe")` once package is installed), and the
+package [manual](doc/manual.pdf) for documentation of the package functions.
 
 This software package is based upon work supported by the National Science
 Foundation under grant numbers SES-22049356 (Kolesár), and by work supported by
