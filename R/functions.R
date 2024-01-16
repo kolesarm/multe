@@ -72,7 +72,7 @@ multHessian <- function(ml, Z=stats::model.matrix(ml)) {
 ## first level to be dropped. wgt are weights, and cluster is a factor variable
 ## signifying cluster membership
 decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7,
-                          cw_uniform=TRUE) {
+                          cw_uniform=FALSE) {
     ## For nnet::multinom, if rhs variables not roughly scaled to [0,1] fit will
     ## be slow or may not converge at all.
     Zm <- apply(Zm, 2, scaleRange)
@@ -256,71 +256,4 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7,
     T1 <- do.call(rbind, lapply(1:K, f2))
     T2 <- rbind(estB, seB)[rep(seq_len(K), each=2) + c(0, K), ]
     list(A=T1, B=T2, tests=tests)
-}
-
-
-write_rd_table <- function(a, col=2, file, digits=3, star=FALSE) {
-    T1 <- a$est_f
-    T2 <- a$cb_f
-    ns <- c(a$n_f, NA, NA, NA, NA)
-    ks <- c(a$k_f, NA, NA, NA, NA)
-    ## TODO: treat n and DOF as integers
-    tests <- rbind(statistic=c(a$t_f$W, a$t_f$LM, NA, NA, NA),
-                   DOF=c(a$t_f[[2]], a$t_f[[5]], NA, NA, NA),
-                   "p-value"=c(a$t_f[[3]], a$t_f[[6]], NA, NA, NA))
-
-    if (col==2) {
-        T1 <- cbind(T1, a$est_o)
-        T2 <- cbind(T2, a$cb_o)
-        tests <- cbind(tests, rbind(statistic=c(a$t_o$W, a$t_o$LM, NA, NA, NA),
-                                    DOF=c(a$t_o[[2]], a$t_o[[5]], NA, NA, NA),
-                                    "p-value"=c(a$t_o[[3]], a$t_o[[6]], NA,
-                                                NA, NA)))
-        ks <- c(ks, c(a$k_o, NA, NA, NA, NA))
-        ns <- c(ns, c(a$n_o, NA, NA, NA, NA))
-    }
-    pop <- (seq.int(nrow(T1)/3)-1)*3+1
-    odd <- (seq.int(nrow(T2)/2)-1)*2+1
-
-    s_level <-  if (star) 0.05 else 0
-    star1 <- (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(1-s_level)) +
-        (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(1-s_level/2)) +
-        (abs(T2[odd, ]/T2[odd+1, ]) > stats::qnorm(1-s_level/10))
-    star1[is.na(star1)] <- 0L
-
-    format_int <- function(x) format(x, nsmall=0, big.mark=",")
-    format_re <- function(x) formatC(x, format="f", digits=digits)
-    t1 <- ifelse(is.na(T1), "", format_re(T1))
-    t1[pop+1, ] <- paste0("(", paste(t1[pop+1, ], sep=","), ")")
-    t1[pop+2, ] <- paste0("[", paste(t1[pop+2, ], sep=","), "]")
-    t1 <- ifelse(t1=="()", "", t1)
-    t1 <- ifelse(t1=="[]", "", t1)
-    t1[pop, ] <- ifelse(star1>2, paste0(t1[pop, ], "$^{***}$"), t1[pop, ])
-    t1[pop, ] <- ifelse(star1==2, paste0(t1[pop, ], "$^{**}$"), t1[pop, ])
-    t1[pop, ] <- ifelse(star1==1, paste0(t1[pop, ], "$^{*}$"), t1[pop, ])
-    ks <- ifelse(is.na(ks), "", format_int(ks))
-    ns <- ifelse(is.na(ns), "", format_int(ns))
-    t1 <- rbind(t1, ks, ns)
-
-    t2 <- ifelse(is.na(T2), "", format_re(T2))
-    t2[odd+1, ] <- paste0("(", paste(t2[odd+1, ], sep=","), ")")
-    t2 <- ifelse(t2=="()", "", t2)
-
-    rownames(t2)[odd+1] <- ""
-    rownames(t1)[c(pop+1, pop+2)] <- ""
-
-    rownames(t1)[NROW(t1)-1] <- "Number of controls"
-    rownames(t1)[NROW(t1)] <- "Sample size"
-
-    t1 <- cbind(rownames(t1), t1)
-    t2 <- cbind(rownames(t2), t2)
-
-    t1 <- tidyr::unite(data=as.data.frame(t1), col="z", sep = " & ")
-    t1 <- unlist(tidyr::unite(data=cbind(t1, c(rep("\\\\", nrow(t1)-1), "")),
-                              col="z", sep=""))
-    t2 <- tidyr::unite(data=as.data.frame(t2), col="z", sep = " & ")
-    t2 <- unlist(tidyr::unite(data=cbind(t2, c(rep("\\\\", nrow(t2)-1), "")),
-                              col="z", sep=""))
-    write(unname(t1), file=paste0(file, "A.tex"))
-    write(unname(t2), file=paste0(file, "B.tex"))
 }

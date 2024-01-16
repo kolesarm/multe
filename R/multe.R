@@ -6,8 +6,18 @@ build_matrix <- function(Cm, S)  {
     }
 }
 
-#' Contamination Bias Diagnostics for Multiple Treatments
+#' Multiple Treatment Effects Regression
 #'
+#' Compute contamination bias diagnostics for the partially linear (PL)
+#' regression estimator with multiple treatments. Also report four alternative
+#' estimators:
+#' \describe{
+#' \item{OWN}{the own treatment effect component of the PL estimator}
+#' \item{ATE}{the unweighted average treatment effect}
+#' \item{EW}{efficiently weighted ATE estimator that runs
+#'           one-treatment-at-a-time regression}
+#' \item{CW}{weighted ATE estimator using efficient common weights}
+#' }
 #' @param r Fitted model, output of the \code{lm} function.
 #' @param treatment_name name of treatment variable
 #' @param cluster Factor variable that defines clusters. If \code{NULL} (or not
@@ -15,7 +25,7 @@ build_matrix <- function(Cm, S)  {
 #'     errors, rather than cluster-robust standard errors.
 #' @param tol Numerical tolerance for computing LM test statistic for testing
 #'     variability of the propensity score.
-#' @param cw_uniform For the CW estimator, use target efficiency when all
+#' @param cw_uniform For the CW estimator, target efficiency when all
 #'     comparisons have equal probability (if \code{FALSE}), or draw from the
 #'     marginal distribution of treatments (if \code{TRUE})?
 #' @return Returns a list with the following components: \describe{

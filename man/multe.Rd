@@ -2,7 +2,7 @@
 % Please edit documentation in R/multe.R
 \name{multe}
 \alias{multe}
-\title{Contamination Bias Diagnostics for Multiple Treatments}
+\title{Multiple Treatment Effects Regression}
 \usage{
 multe(r, treatment_name, cluster = NULL, tol = 1e-07, cw_uniform = FALSE)
 }
@@ -18,7 +18,7 @@ errors, rather than cluster-robust standard errors.}
 \item{tol}{Numerical tolerance for computing LM test statistic for testing
 variability of the propensity score.}
 
-\item{cw_uniform}{For the CW estimator, use target efficiency when all
+\item{cw_uniform}{For the CW estimator, target efficiency when all
 comparisons have equal probability (if \code{FALSE}), or draw from the
 marginal distribution of treatments (if \code{TRUE})?}
 }
@@ -46,7 +46,16 @@ variation in the propensity scores.}
 }
 }
 \description{
-Contamination Bias Diagnostics for Multiple Treatments
+Compute contamination bias diagnostics for the partially linear (PL)
+regression estimator with multiple treatments. Also report four alternative
+estimators:
+\describe{
+\item{OWN}{the own treatment effect component of the PL estimator}
+\item{ATE}{the unweighted average treatment effect}
+\item{EW}{efficiently weighted ATE estimator that runs
+one-treatment-at-a-time regression}
+\item{CW}{weighted ATE estimator using efficient common weights}
+}
 }
 \examples{
 wbh <- fl[fl$race=="White" | fl$race=="Black" | fl$race=="Hispanic", ]

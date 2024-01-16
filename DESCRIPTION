@@ -20,17 +20,12 @@ Description: This R package implements contamination bias diagnostics and
     implementation is based on Goldsmith-Pinkham, Hull, and Kolesár (2022)
     <arXiv:2106.05024>.
 Depends: R (>= 4.3.0)
-Language: en-US
-URL: https://github.com/kolesarm/multe
-BugReports: https://github.com/kolesarm/multe/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
-Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+LazyData: true
 Imports:
     stats,
-    nnet,
-    tidyr
+    nnet
 Suggests:
     spelling,
     knitr,
@@ -38,5 +33,9 @@ Suggests:
     rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
-LazyData: true
+Language: en-US
+URL: https://github.com/kolesarm/multe
+BugReports: https://github.com/kolesarm/multe/issues
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
 VignetteBuilder: knitr

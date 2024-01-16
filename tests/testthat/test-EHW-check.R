@@ -171,7 +171,27 @@ test_that("Simple examples", {
                                        stats::model.matrix(r4)[, -c(2:5)],
                                        stats::model.weights(r4$model)),
                    "statistic is: 979.46, with df: 35")
+
+    ## Adding observations with zero weights should make no difference
+    fl1 <- rbind(fl, fl)
+    fl1$W2C0[(NROW(fl)+1):(2*NROW(fl))] <- 0
+    r5 <- lm(std_iq_24~race+ region + I(poly(mom_age, 5))+mom_age_NA,
+             weight=W2C0, data=fl1)
+    expect_warning(m5 <- multe(r5, "race"),
+                   "statistic is: 979.46, with df: 35")
+    dd <- m5$est_f-m4$A
+    expect_lt(max(abs(dd[!is.na(dd)])), 1e-12)
+    dd <- m5$cb_f-m4$B
+    expect_lt(max(abs(dd[!is.na(dd)])), 1e-12)
+    m0 <- capture.output(print(m5, digits=4))
+
+    expect_equal(m0[[3]],
+                 "Black    -0.34365 -0.34146 -0.34207 -0.34585 -0.35662")
+    expect_equal(m0[[21]],
+                 "SE        0.04100  0.04093  0.04296  0.04114  0.04337")
+
 })
+
 
 test_that("Input checks", {
     wbh <- fl[fl$race=="White" | fl$race=="Black" | fl$race=="Hispanic", ]
@@ -183,4 +203,3 @@ test_that("Input checks", {
 })
 
 ## TODO: Test LM, own, and CW.
-## TODO: printCoefmat

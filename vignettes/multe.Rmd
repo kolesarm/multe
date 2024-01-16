@@ -72,34 +72,37 @@ m2 <- multe(r2, treatment="race")
 print(m2, digits=3)
 ```
 
-The issue is that observations with 6 siblings never have race equal to `other`:
+The issue is that no observations with 6 siblings have race equal to `other`:
 
 ```{r r3}
 table(fl$race[fl$siblings==6])
 ```
 
-Thus, the ATE estimator comparing `other` to `white` cannot be computed. The
+Thus, the ATE estimator comparing `other` to `white` is not identified. The
 package drops observations with 6 siblings from the sample to form an "overlap
 sample" (see Methods section below for precise construction of this sample),
 where the all estimators are identified.
 
-To check whether there is a significant difference between PL and the
-alternative estimators, the data frames `cb_f` and `cb_o` report differences
-between the estimates, along with standard errors for the full and overlap
-sample, respectively:
+For a researcher who wants to check whether there is a significant difference
+between the PL estimator and the other estimators, the data frame `cb_f` reports
+the difference between the estimates in the full sample, along with the
+corresponding standard error. The data frame `cb_o` reports the differences and
+standard errors for the overlap sample:
 
 ```{r r4}
 print(m2$cb_f, digits=3)
+print(m2$cb_o, digits=3)
 ```
 
 We see statistically significant difference between the OWN and PL estimate
-(i.e. significant contamination bias) for all races.
+(i.e. significant contamination bias) for all races, both in the full sample and
+in the overlap sample.
 
 ## Standard errors
 
 The package also computes "oracle" standard errors, in addition to the usual
-standard errors reported above. These can be accessed in the `est_f` component
-of the output (or `est_o` for the overlap sample results)
+standard errors reported above. These can be accessed in the data frame `est_f`
+(or `est_o` for the overlap sample results)
 
 ```{r r5}
 print(m1$est_f, digits=3)
@@ -107,8 +110,10 @@ print(m1$est_f, digits=3)
 
 These oracle standard errors (`oracle_se`) don't account for estimation error in
 the propensity score, in contrast to the default standard errors (`pop_se`), see
-Methods section below. Specifying the `cluster` argument allows for computation
-of clustered standard errors:
+Methods section below.
+
+Specifying the `cluster` argument allows for computation of clustered standard
+errors:
 
 ```{r r6}
 ## cluster in interviewer ID
@@ -143,8 +148,8 @@ correspond to the coefficients in the interacted regression
     % &=\alpha_{0, k}+W_{i}'\alpha_{W, 0}+\sum_{k=1}^{K}X_{ik}\tau_{k}+\sum_{k=1}^{K}X_{ik}(W_{i}-E[W_{i}])'\gamma_{W, k}.
     %   \label{eq:linear_tau}
 \end{equation}
-with $\dot{U}_{i}$ conditionally mean zero. The uninteracted estimator is given
-by estimating
+with $\dot{U}_{i}$ conditionally mean zero. The uninteracted partially linear
+(PL) estimator is given by estimating
 \begin{equation}\label{eq:uninteracted_linear}
     Y_i=\sum_{k=1}^{K} X_{ik}\beta + Z_i'\phi +U_{i},
 \end{equation}
