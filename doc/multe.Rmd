@@ -290,8 +290,7 @@ We use \eqref{eq:psi_reg} to compute $\psi(\hat{\alpha}_{k})$, as well as
   \psi_{i}(\hat{\delta}_{k k})&=\frac{\omega_{i}^{2}\hat{\zeta}_{ik}\ddot{X}_{ik}}{\sum_{i}\omega_{i}^{2}\ddot{X}_{ik}^{2}},
 \end{align*}
 where $\hat{\zeta}_{ik}$ is the WLS residual based on
-\eqref{eq:delta_system}, and $\ddot{X}_{ik}$ is the sample analog of
-$\dbtilde{X}_{ik}$, the residual from regressing $X_{ik}$ onto $X_{i, -k}$ and
+\eqref{eq:delta_system}, and $\ddot{X}_{ik}$ is the residual from regressing $X_{ik}$ onto $X_{i, -k}$ and
 $Z_{i}$. It then follows from \eqref{eq:psi_reg} and the influence function
 formulas above, that
 \begin{align*}

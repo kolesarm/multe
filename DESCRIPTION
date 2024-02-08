@@ -1,6 +1,6 @@
 Package: multe
 Title: Multiple Treatment Effects Regression
-Version: 0.0.0.9000
+Version: 1.0.0
 Authors@R:
     c(person(given = "Michal",
             family = "Kolesár",
