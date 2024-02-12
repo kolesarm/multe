@@ -43,7 +43,7 @@ sample.}
 the full and for the overlap sample, for testing the hypothesis of no
 variation in the propensity scores.}
 
-\item{Y,X, wgt}{Vector of outcomes, treatments and weights in the overlap
+\item{Y, X, wgt}{Vector of outcomes, treatments and weights in the overlap
 sample}
 
 \item{Zm}{Matrix of controls in the overlap sample}
