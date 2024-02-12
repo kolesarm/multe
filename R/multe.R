@@ -12,11 +12,14 @@ build_matrix <- function(Cm, S)  {
 #' regression estimator with multiple treatments. Also report four alternative
 #' estimators:
 #' \describe{
-#' \item{OWN}{the own treatment effect component of the PL estimator}
-#' \item{ATE}{the unweighted average treatment effect}
-#' \item{EW}{efficiently weighted ATE estimator that runs
-#'           one-treatment-at-a-time regression}
-#' \item{CW}{weighted ATE estimator using efficient common weights}
+#' \item{OWN}{The own treatment effect component of the PL estimator.}
+#' \item{ATE}{The unweighted average treatment effect, implemented using
+#'            interacted regression.}
+#' \item{EW}{Weighted ATE estimator based on easiest-to-estimate weighting (EW)
+#'           scheme,
+#'           implemented by running one-treatment-at-a-time regressions.}
+#' \item{CW}{Weighted ATE estimator using easiest-to-estimate common
+#'           weighting (CW) scheme, implemented using weighted regression.}
 #' }
 #' @param r Fitted model, output of the \code{lm} function.
 #' @param treatment_name name of treatment variable
@@ -25,9 +28,9 @@ build_matrix <- function(Cm, S)  {
 #'     errors, rather than cluster-robust standard errors.
 #' @param tol Numerical tolerance for computing LM test statistic for testing
 #'     variability of the propensity score.
-#' @param cw_uniform For the CW estimator, target efficiency when all
-#'     comparisons have equal probability (if \code{FALSE}), or draw from the
-#'     marginal distribution of treatments (if \code{TRUE})?
+#' @param cw_uniform For the CW estimator, should the target weighting scheme
+#'     give all comparisons equal weight (if \code{FALSE}), or should it draw
+#'     from the marginal empirical treatment distribution (if \code{TRUE})?
 #' @return Returns a list with the following components: \describe{
 #'
 #' \item{est_f}{Data frame with alternative estimators and standard errors for
@@ -48,6 +51,10 @@ build_matrix <- function(Cm, S)  {
 #' the full and for the overlap sample, for testing the hypothesis of no
 #' variation in the propensity scores.}
 #'
+#' \item{Y, X, wgt}{Vector of outcomes, treatments and weights in the overlap
+#'                 sample}
+#'
+#' \item{Zm}{Matrix of controls in the overlap sample}
 #' }
 #' @references{
 #'
@@ -153,7 +160,8 @@ multe <- function(r, treatment_name, cluster=NULL, tol=1e-7, cw_uniform=FALSE) {
     }
 
     structure(list(est_f=r1$A, est_o=r2$A, cb_f=r1$B, cb_o=r2$B, n_f=n1,
-                   n_o=n2, k_f=k1, k_o=k2, t_f=r1$tests, t_o=r2$tests),
+                   n_o=n2, k_f=k1, k_o=k2, t_f=r1$tests, t_o=r2$tests,
+                   Y=Y, X=X, Zm=Zm, wgt=wgt),
               class="multe")
 }
 

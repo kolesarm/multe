@@ -52,11 +52,12 @@ The package reports five different estimators:
 2. OWN: The own-treatment effect component of the contamination bias
    decomposition. If OWN is close to PL, as above, this indicates negligible
    contamination bias.
-3. ATE: the unweighted ATE estimator.
-4. EW: the efficiently weighted ATE estimator that runs one-treatment-at-a-time
-   regression
-5. CW: weighted ATE estimator using efficient common weights, as in Corollary 2
-   in @ghk23.
+3. ATE: The unweighted average treatment effect, implemented using regression
+   that interacts the treatment dummies with the controls.
+4. EW: Weighted ATE estimator based on easiest-to-estimate weighting (EW)
+   scheme, implemented by running one-treatment-at-a-time regressions.
+5. CW: Weighted ATE estimator using easiest-to-estimate common weighting (CW)
+   scheme from Corollary 2 in @ghk23, implemented using weighted regression.
 
 Precise definitions of these estimators are given in the Methods section below.
 

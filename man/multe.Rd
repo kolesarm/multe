@@ -18,9 +18,9 @@ errors, rather than cluster-robust standard errors.}
 \item{tol}{Numerical tolerance for computing LM test statistic for testing
 variability of the propensity score.}
 
-\item{cw_uniform}{For the CW estimator, target efficiency when all
-comparisons have equal probability (if \code{FALSE}), or draw from the
-marginal distribution of treatments (if \code{TRUE})?}
+\item{cw_uniform}{For the CW estimator, should the target weighting scheme
+give all comparisons equal weight (if \code{FALSE}), or should it draw
+from the marginal empirical treatment distribution (if \code{TRUE})?}
 }
 \value{
 Returns a list with the following components: \describe{
@@ -43,6 +43,10 @@ sample.}
 the full and for the overlap sample, for testing the hypothesis of no
 variation in the propensity scores.}
 
+\item{Y,X, wgt}{Vector of outcomes, treatments and weights in the overlap
+sample}
+
+\item{Zm}{Matrix of controls in the overlap sample}
 }
 }
 \description{
@@ -50,11 +54,14 @@ Compute contamination bias diagnostics for the partially linear (PL)
 regression estimator with multiple treatments. Also report four alternative
 estimators:
 \describe{
-\item{OWN}{the own treatment effect component of the PL estimator}
-\item{ATE}{the unweighted average treatment effect}
-\item{EW}{efficiently weighted ATE estimator that runs
-one-treatment-at-a-time regression}
-\item{CW}{weighted ATE estimator using efficient common weights}
+\item{OWN}{The own treatment effect component of the PL estimator.}
+\item{ATE}{The unweighted average treatment effect, implemented using
+interacted regression.}
+\item{EW}{Weighted ATE estimator based on easiest-to-estimate weighting (EW)
+scheme,
+implemented by running one-treatment-at-a-time regressions.}
+\item{CW}{Weighted ATE estimator using easiest-to-estimate common
+weighting (CW) scheme, implemented using weighted regression.}
 }
 }
 \examples{
