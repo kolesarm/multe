@@ -15,10 +15,9 @@ Authors@R:
              family = "Hull",
              role = "ctb",
              email = "peter_hull@brown.edu"))
-Description: This R package implements contamination bias diagnostics and
-    alternative estimators for regressions with multiple treatments. The
-    implementation is based on Goldsmith-Pinkham, Hull, and Kolesár (2022)
-    <arXiv:2106.05024>.
+Description: Implements contamination bias diagnostics and alternative
+    estimators for regressions with multiple treatments. The implementation is
+    based on Goldsmith-Pinkham, Hull, and Kolesár (2022) <arXiv:2106.05024>.
 Depends: R (>= 4.3.0)
 License: MIT + file LICENSE
 Encoding: UTF-8
