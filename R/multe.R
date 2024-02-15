@@ -59,7 +59,7 @@ build_matrix <- function(Cm, S)  {
 #' @references{
 #'
 #' \cite{Paul Goldsmith-Pinkham, Peter Hull, and Michal Kolesár. Contamination
-#' bias in linear regressions. ArXiv:2106.05024, August 2022.}
+#' bias in linear regressions. ArXiv:2106.05024, February 2024.}
 #' }
 #' @examples
 #' wbh <- fl[fl$race=="White" | fl$race=="Black" | fl$race=="Hispanic", ]

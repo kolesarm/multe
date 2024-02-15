@@ -3,7 +3,7 @@
 [![R-CMD-check](https://github.com/kolesarm/multe/workflows/R-CMD-check/badge.svg)](https://github.com/kolesarm/multe/actions) [![Coverage status](https://codecov.io/gh/kolesarm/multe/branch/master/graph/badge.svg)](https://app.codecov.io/github/kolesarm/multe?branch=master) [![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/multe)](https://cran.r-project.org/package=multe)
 
 This R package implements contamination bias diagnostics, using procedures from
-[Goldsmith-Pinkham, Hull, and Kolesár (2023)](https://arxiv.org/abs/2106.05024).
+[Goldsmith-Pinkham, Hull, and Kolesár (2024)](https://arxiv.org/abs/2106.05024).
 See [multe-stata](https://github.com/gphk-metrics/stata-multe) for a Stata
 version of this package.
 

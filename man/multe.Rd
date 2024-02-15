@@ -74,6 +74,6 @@ m1 <- multe(r1, treatment="race")
 {
 
 \cite{Paul Goldsmith-Pinkham, Peter Hull, and Michal Kolesár. Contamination
-bias in linear regressions. ArXiv:2106.05024, August 2022.}
+bias in linear regressions. ArXiv:2106.05024, February 2024.}
 }
 }
