@@ -1,6 +1,6 @@
 # multe
 
-[![R-CMD-check](https://github.com/kolesarm/multe/workflows/R-CMD-check/badge.svg)](https://github.com/kolesarm/multe/actions) [![Coverage status](https://codecov.io/gh/kolesarm/multe/branch/master/graph/badge.svg)](https://app.codecov.io/github/kolesarm/multe?branch=master)
+[![R-CMD-check](https://github.com/kolesarm/multe/workflows/R-CMD-check/badge.svg)](https://github.com/kolesarm/multe/actions) [![Coverage status](https://codecov.io/gh/kolesarm/multe/branch/master/graph/badge.svg)](https://app.codecov.io/github/kolesarm/multe?branch=master) [![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/multe)](https://cran.r-project.org/package=multe)
 
 This R package implements contamination bias diagnostics, using procedures from
 [Goldsmith-Pinkham, Hull, and Kolesár (2023)](https://arxiv.org/abs/2106.05024).
@@ -17,7 +17,14 @@ the Alfred P. Sloan Research Fellowship (Kolesár).
 
 ## Installation
 
-You can get the current development version from GitHub:
+You can install the released version of `multe` from
+[CRAN](https://CRAN.R-project.org/package=multe) with:
+
+``` r
+install.packages("multe")
+```
+
+Alternatively, you can get the current development version from GitHub:
 ``` r
 if (!requireNamespace("remotes")) {
   install.packages("remotes")
@@ -31,7 +38,7 @@ The packages takes the output of `lm`, and computes alternative estimates of the
 treatment effects that are free of contamination bias.
 
 ``` r
-library(multe)
+library("multe")
 ## Regression of IQ at 24 months on race indicators and baseline controls
 r1 <- stats::lm(std_iq_24~race+factor(age_24)+female+SES_quintile, weight=W2C0, data=fl)
 ## Compute alternatives estimates free of contamination bias
