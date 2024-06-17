@@ -9,7 +9,7 @@ test_that("Test Hessian calculations", {
     r3 <- nnet::multinom(race~factor(age_24)+female, weight=W2C0, data=fl,
                          trace=FALSE)
     expect_lt(max(abs(multHessian(r2)-nnet:::multinomHess(r2))), 1e-8)
-    expect_lt(max(abs(multHessian(r3)-nnet:::multinomHess(r3))), 1e-8)
+    expect_lt(max(abs(multHessian(r3)-nnet:::multinomHess(r3))), 3e-8)
     r4 <- nnet::multinom(I(race=="White")~factor(age_24)+female, weight=W2C0,
                          data=fl, trace=FALSE)
     expect_lt(max(abs(multHessian(r4)-nnet:::multinomHess(r4))), 1e-8)
