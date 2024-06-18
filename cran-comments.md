@@ -1,6 +1,14 @@
 ## Test environments
 * Debian GNU/Linux 12 (bookworm) install, R 4.3.1
 * win-builder, R-devel and R-release
+* Rhub
+  - ubuntu-release R-4.4.1 (2024-06-14)
+
+
+  - Ubuntu Linux 20.04.1 LTS, R-release, GCC
+  - Debian Linux, R-devel, GCC, no long double
+
+
 
 r-release-macos-arm64
 M1mac
@@ -15,9 +23,6 @@ https://mac.R-project.org/macbuilder/results/1718716866-1c9f21830b3e3fb4/
   - Ubuntu 20.04.3 LTS, R-devel
 
 * macbuilder macOS 13.3.1 (22E261) R4.3.0 Patched (2023-05-18 r84451)
-* Rhub
-  - Ubuntu Linux 20.04.1 LTS, R-release, GCC
-  - Debian Linux, R-devel, GCC, no long double
 
 ## Submission note
 
