@@ -1,11 +1,13 @@
 \usepackage{mathtools}
-\usepackage{bbm} % blackboard math for computer modern
+% \usepackage{bbm} % blackboard math for computer modern
+% bbm not available on a mac:
+% /opt/tex/texmf-dist/web2c/mktexdir /opt/tex/texmf-var/fonts/pk/ljfour/public/bbm failed
 % A starred version \abs*{} is produces delimiters that are preceded by \left
 % and \right, or use \abs[\Bigg]{\frac{a}{b}}
 \DeclarePairedDelimiter\abs{\lvert}{\rvert}
 \DeclarePairedDelimiter\norm{\lVert}{\rVert}
 \DeclarePairedDelimiter\indicatorfence{\{}{\}}
-\newcommand\1{\operatorname{\mathbbm{1}}\indicatorfence}
+\newcommand\1{\operatorname{{I}}\indicatorfence}
 \DeclareMathOperator{\diag}{diag}
 \newcommand{\hbo}{\hat{\beta}^{\textnormal{Own}}}
 \newcommand{\hbcb}{\hat{\beta}^{\textnormal{CB}}}
