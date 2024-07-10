@@ -48,8 +48,11 @@ build_matrix <- function(Cm, S)  {
 #' \item{k_f, k_o}{Number of controls for the full, and for the overlap sample.}
 #'
 #' \item{t_f, t_o}{LM and Wald statistic, degrees of freedom, and p-values for
-#' the full and for the overlap sample, for testing the hypothesis of no
-#' variation in the propensity scores.}
+#'   the full and for the overlap sample, for testing the hypothesis of no
+#'   variation in the propensity scores.}
+#'
+#' \item{pscore_sd_f, pscore_sd_o}{Standard deviation of the estimated
+#'     propensity score in the full and overlap samples.}
 #'
 #' \item{Y, X, wgt}{Vector of outcomes, treatments and weights in the overlap
 #'                 sample}
@@ -161,8 +164,8 @@ multe <- function(r, treatment_name, cluster=NULL, tol=1e-7, cw_uniform=FALSE) {
 
     structure(list(est_f=r1$A, est_o=r2$A, cb_f=r1$B, cb_o=r2$B, n_f=n1,
                    n_o=n2, k_f=k1, k_o=k2, t_f=r1$tests, t_o=r2$tests,
-                   Y=Y, X=X, Zm=Zm, wgt=wgt),
-              class="multe")
+                   pscore_sd_f = r1$pscore_sd, pscore_sd_o = r2$pscore_sd,
+                   Y=Y, X=X, Zm=Zm, wgt=wgt), class="multe")
 }
 
 #' @export

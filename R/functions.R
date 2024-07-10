@@ -255,5 +255,6 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7,
     }
     T1 <- do.call(rbind, lapply(1:K, f2))
     T2 <- rbind(estB, seB)[rep(seq_len(K), each=2) + c(0, K), ]
-    list(A=T1, B=T2, tests=tests)
+    list(A=T1, B=T2, tests=tests,
+         pscore_sd=diag(stats::cov.wt(pis, ws^2, method="ML")$cov))
 }

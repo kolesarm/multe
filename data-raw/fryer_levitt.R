@@ -1,5 +1,6 @@
 ## The original dta file, has been downloaded from
-## https://doi.org/10.3886/E112609V1 Then running fryer_levitt.do produces mental.dta
+## https://doi.org/10.3886/E112609V1 Then running fryer_levitt.do produces
+## the file mental.dta
 
 ## 1. Read data,  Convert 0/1 to logical
 fl <- readstata13::read.dta13("mental.dta", generate.factors=TRUE)
