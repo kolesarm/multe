@@ -1,11 +1,11 @@
 ## The original dta file, has been downloaded from
-## https://doi.org/10.3886/E112609V1 Then run fryer_levitt.do
+## https://doi.org/10.3886/E112609V1 Then running fryer_levitt.do produces mental.dta
 
 ## 1. Read data,  Convert 0/1 to logical
 fl <- readstata13::read.dta13("mental.dta", generate.factors=TRUE)
 attr(fl, "expansion.fields") <- NULL
-attr(fl, "datalabel") <- NULL
 attr(fl, "formats") <- NULL
+attr(fl, "datalabel") <- NULL
 attr(fl, "types") <- NULL
 attr(fl, "val.labels") <- NULL
 attr(fl, "label.table") <- NULL
