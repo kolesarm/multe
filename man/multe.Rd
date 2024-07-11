@@ -43,6 +43,9 @@ sample.}
 the full and for the overlap sample, for testing the hypothesis of no
 variation in the propensity scores.}
 
+\item{pscore_sd_f, pscore_sd_o}{Standard deviation of the estimated
+propensity score in the full and overlap samples.}
+
 \item{Y, X, wgt}{Vector of outcomes, treatments and weights in the overlap
 sample}
 

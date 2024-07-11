@@ -184,7 +184,7 @@ orthogonal to $\dot{X}_{i}$. As a result, we obtain the exact decomposition
   \end{split}
 \end{equation}
 where $\hat{\Gamma}$ is a matrix with columns
-$\gamma_{k}=\alpha_{k}-\alpha_{0}$,
+$\hat{\gamma}_{k}=\hat{\alpha}_{k}-\hat{\alpha}_{0}$,
 $\hat{\Lambda}_{i}=E_{n}[\dot{X}_{i}\dot{X}_{i}']^{-1}\dot{X}_{i}X_{i}'$, and
 $E_{n}[A_{i}]=\sum_{i}\omega_{i}^{2}A_{i}/\sum_{i}\omega_{i}^{2}$ denotes the
 weighted sample mean.

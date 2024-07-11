@@ -153,7 +153,6 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7,
     ## nnet by Brian Ripley. Convergence: ml$convergence==0, ml$value
     ml <- nnet::multinom(X~0+Zm, abstol=1e-12, reltol=1e-12, trace=FALSE,
                          maxit=1e4, weights=wgt, MaxNWts=1e4)
-
     ml$fitted.values[ml$fitted.values < max(ml$fitted.values)*1e-6] <- 0
     if (NCOL(ml$fitted.values)==1) {
         ml$fitted.values <- cbind(1 - ml$fitted.values, ml$fitted.values)
@@ -256,5 +255,5 @@ decomposition <- function(Y, X, Zm, wgt=NULL, cluster=NULL, tol=1e-7,
     T1 <- do.call(rbind, lapply(1:K, f2))
     T2 <- rbind(estB, seB)[rep(seq_len(K), each=2) + c(0, K), ]
     list(A=T1, B=T2, tests=tests,
-         pscore_sd=diag(stats::cov.wt(pis, ws^2, method="ML")$cov))
+         pscore_sd=sqrt(diag(stats::cov.wt(pis, ws^2, method="ML")$cov)))
 }

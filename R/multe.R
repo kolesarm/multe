@@ -182,5 +182,7 @@ print.multe <- function(x, digits=getOption("digits"), ...) {
     cat("\nP-values for null hypothesis of no propensity score variation:\n")
     cat("Wald test:", round(x$t_f$p_W, digits=digits))
     cat(", LM test:", round(x$t_f$p_LM, digits=digits), "\n")
-
+    cat("\nSD(estimated propensity score), maximum over treatment arms:\n")
+    cat("Full sample:", round(max(x$pscore_sd_f), digits=digits))
+    cat(", Overlap sample:", round(max(x$pscore_sd_o), digits=digits), "\n")
 }
