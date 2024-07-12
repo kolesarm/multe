@@ -37,6 +37,8 @@ test_that("Test Fryer and Levitt", {
     ## Base controls only
     r1 <- stats::lm(std_iq_24~race+factor(age_24)+female, weight=W2C0, data=fl)
     m1 <- multe(r1, "race", cluster=NULL)
+    out1 <- capture.output(print(m1, digits=4))
+    testthat::expect_equal(out1[16], "Full sample: 0.0434")
 
     ## Test we match stata: 1 non-strata control, overlap
     e1 <- -c(0.38214850861, 0.43152780424, 0.21524163702, 0.23674243795)
@@ -184,6 +186,8 @@ test_that("Simple examples", {
     dd <- m5$cb_f-m4$B
     expect_lt(max(abs(dd[!is.na(dd)])), 1e-12)
     m0 <- capture.output(print(m5, digits=4))
+    testthat::expect_equal(m0[[27]],
+                           "Full sample: 0.1424, Overlap sample: 0.1422")
 
     expect_equal(m0[[3]],
                  "Black    -0.34365 -0.34146 -0.34207 -0.34585 -0.35662")
