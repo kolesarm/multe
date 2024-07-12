@@ -1,3 +1,11 @@
+# multe 1.1.0
+
+## New Features
+
+- The function `multe` now also returns a vector of standard deviations of the
+  estimated propensity score in each treatment arm, both in the full and in the
+  overlap sample
+
 # multe 1.0.1
 
 ## Minor improvements and fixes
